@@ -1,23 +1,39 @@
-name: Go
+name: publish
 
 on:
-  tag: 
-    - "*"
+  push:
+    tags:
+      - "*"
 
 jobs:
-
-  build:
-    runs-on: ubuntu-latest
+  publish:
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version: [1.17.x]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.17
-
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Make all
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+               go build -o pmsim main.go
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+               go build -o pmsim.exe main.go
+          else
+               go build -o pmsim main.go
+          fi
+        timeout-minutes: 6
+      - name: Upload release binaries
+        uses: alexellis/upload-assets@0.2.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["./pmsim*", "./scripts/*"]'
