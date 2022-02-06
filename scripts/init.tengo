@@ -20,4 +20,4 @@ prepare := func() {
 }
 
 init_state := prepare()
-hex_size := 48
+hex_size := 64
