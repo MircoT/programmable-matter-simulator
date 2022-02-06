@@ -21,22 +21,22 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Make executable (Linux)
+      - name: Make executable - Linux
         run: |
           sudo apt-get install libgl1-mesa-dev libxcursor-dev
           go build -o pmsim main.go
         timeout-minutes: 10
-        if: matrix.os == "ubuntu-latest"
-      - name: Make executable (MacOS)
+        if: matrix.os == 'ubuntu-latest'
+      - name: Make executable - MacOS
         run: |
           go build -o pmsim main.go
         timeout-minutes: 10
-        if: matrix.os == "macos-latest"
-      - name: Make executable (Windows)
+        if: matrix.os == 'macos-latest'
+      - name: Make executable - Windows
         run: |
           go build -o pmsim.exe main.go
         timeout-minutes: 10
-        if: matrix.os == "windows-latest"
+        if: matrix.os == 'windows-latest'
       - name: Upload release binaries
         uses: alexellis/upload-assets@0.2.2
         env:
