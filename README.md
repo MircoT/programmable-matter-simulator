@@ -3,7 +3,7 @@
 A programmable matter simulator written using [Go](https://go.dev/) and [Ebiten](https://ebiten.org/) scriptable using [Tengo language](https://github.com/d5/tengo).
 
 <p align="center">
-    ![Programmable Matter Simulator screenshot](/screenshot.png)
+    <img src="https://github.com/MircoT/programmable-matter-simulator/raw/main/screenshot.png" width="auto" height="320" />
 </p>
 
 ## :rocket: Quick start
