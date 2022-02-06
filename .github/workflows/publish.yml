@@ -23,7 +23,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Make executable - Linux
         run: |
-          sudo apt-get install libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev
+          sudo apt-get install libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev
           go build -o pmsim main.go
         timeout-minutes: 10
         if: matrix.os == 'ubuntu-latest'
