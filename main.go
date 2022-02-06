@@ -10,7 +10,9 @@ import (
 
 func main() {
 	r := &pkg.Renderer{}
-	r.Init()
+	if err := r.Init(); err != nil {
+		log.Fatal(err)
+	}
 
 	ebiten.SetWindowSize(pkg.ScreenWidth, pkg.ScreenHeight)
 	ebiten.SetWindowTitle("Programmable Matter Simulator - Demo")
