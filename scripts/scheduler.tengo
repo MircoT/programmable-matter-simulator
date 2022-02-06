@@ -1,0 +1,16 @@
+rand := import("rand")
+
+scheduler := func(all_particles, all_states) {
+    to_awake := []
+    idx := 0
+    for state in all_states {
+        if state == "CONTRACTED" {
+            if rand.float() > 0.5 {
+                to_awake = append(to_awake, all_particles[idx])
+            }
+        }
+        idx += 1
+    }
+    return to_awake
+}
+active_particles := scheduler(particles, states)
