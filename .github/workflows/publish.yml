@@ -24,11 +24,12 @@ jobs:
       - name: Make all
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-               go build -o pmsim main.go
+            apt-get install libmesa-dev
+            go build -o pmsim main.go
           elif [ "$RUNNER_OS" == "Windows" ]; then
-               go build -o pmsim.exe main.go
+            go build -o pmsim.exe main.go
           else
-               go build -o pmsim main.go
+            go build -o pmsim main.go
           fi
         timeout-minutes: 6
       - name: Upload release binaries
