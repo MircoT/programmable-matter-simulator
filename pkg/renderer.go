@@ -36,29 +36,29 @@ const (
 
 var (
 	mplusNormalFont font.Face
-	mplusBigFont    font.Face
+	// mplusBigFont    font.Face
 )
 
 type Renderer struct {
-	phase        Phases
-	hexSize      int
-	w            int
-	h            int
-	half_w       int
-	half_h       int
-	max_dist     int
-	mx           int
-	my           int
-	c_row        int
-	c_column     int
-	offset_x     int
-	offset_y     int
+	phase    Phases
+	hexSize  int
+	w        int
+	h        int
+	half_w   int
+	half_h   int
+	max_dist int
+	mx       int
+	my       int
+	c_row    int
+	c_column int
+	// offset_x     int
+	// offset_y     int
 	grid         [][]*Particle
 	edges        map[int]map[int]bool
 	engine       Engine
 	stateAssets  []*ebiten.Image
 	keys         []ebiten.Key
-	tick         <-chan time.Time
+	ticker       *time.Ticker
 	engineTick   chan int
 	round        int
 	guiDebug     bool
@@ -235,20 +235,23 @@ func (r *Renderer) Init() error {
 		return err
 	}
 
-	mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    16,
-		DPI:     dpi,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		return err
-	}
+	// mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+	// 	Size:    16,
+	// 	DPI:     dpi,
+	// 	Hinting: font.HintingFull,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	r.tick = time.Tick(500 * time.Millisecond)
+	r.ticker = time.NewTicker(500 * time.Millisecond)
 	r.engineTick = make(chan int)
 	r.round = 0
 
-	r.InitImages()
+	err = r.InitImages()
+	if err != nil {
+		panic(err)
+	}
 
 	err = r.engine.Init()
 	if err != nil {
@@ -298,7 +301,10 @@ func (r *Renderer) Init() error {
 			panic(err)
 		}
 
-		r.grid[x][y].SetStateN(int(val.(int64)))
+		err = r.grid[x][y].SetStateN(int(val.(int64)))
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	r.max_dist = r.hexSize / 2
@@ -507,17 +513,24 @@ func (r *Renderer) updateNeighbors() {
 		for column, particle := range columns {
 			if particle.GetStateN() > 0 {
 				neighbors1, neighbors2 := r.getNeighbors(row, column)
-				particle.SetNeighbors(neighbors1, neighbors2)
+				if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
+					panic(err)
+				}
 
 				deg := 0
-				particle.SetDeg(deg)
+				if err := particle.SetDeg(deg); err != nil {
+					panic(err)
+				}
 
 				for _, neighbor := range neighbors1 {
 					if neighbor == "CONTRACTED" {
 						deg += 1
 					}
 				}
-				particle.SetDeg(deg)
+
+				if err := particle.SetDeg(deg); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -689,7 +702,9 @@ func (r *Renderer) updateEngine() {
 						panic(err)
 					}
 
-					r.grid[row][column].SetStateS(nextState)
+					if err := r.grid[row][column].SetStateS(nextState); err != nil {
+						panic(err)
+					}
 					r.grid[row][column].Sleep()
 
 					// fmt.Println(curState, nextState)
@@ -724,7 +739,7 @@ func (r *Renderer) updateEngine() {
 
 func (r *Renderer) Update() error {
 	select {
-	case <-r.tick:
+	case <-r.ticker.C:
 		select {
 		case r.round = <-r.engineTick:
 			// fmt.Println("Engine Updated")
@@ -743,18 +758,26 @@ func (r *Renderer) Update() error {
 		case "Space":
 			if inpututil.IsKeyJustPressed(p) {
 				if r.engine.IsRunning() {
-					r.engine.Stop()
+					if err := r.engine.Stop(); err != nil {
+						panic(err)
+					}
 				} else {
-					r.engine.Start()
+					if err := r.engine.Start(); err != nil {
+						panic(err)
+					}
 				}
 			}
 		case "L":
 			if inpututil.IsKeyJustPressed(p) {
-				r.engine.LoadScripts()
+				if err := r.engine.LoadScripts(); err != nil {
+					panic(err)
+				}
 			}
 		case "R":
 			if inpututil.IsKeyJustPressed(p) || inpututil.IsKeyJustReleased(p) {
-				r.Init()
+				if err := r.Init(); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
