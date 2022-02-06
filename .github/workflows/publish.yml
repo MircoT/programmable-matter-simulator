@@ -21,15 +21,20 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Make script zip
+        run: |
+          zip -r scripts.zip scripts/
+        timeout-minutes: 10
+        if: matrix.os == 'ubuntu-latest'
       - name: Make executable - Linux
         run: |
           sudo apt-get install libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev
-          go build -o pmsim main.go
+          go build -o pmsim.linux.run main.go
         timeout-minutes: 10
         if: matrix.os == 'ubuntu-latest'
       - name: Make executable - MacOS
         run: |
-          go build -o pmsim main.go
+          go build -o pmsim.macos.run main.go
         timeout-minutes: 10
         if: matrix.os == 'macos-latest'
       - name: Make executable - Windows
@@ -42,4 +47,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: '["./pmsim*", "./scripts/*"]'
+          asset_paths: '["./pmsim*"]'
+      - name: Upload release binaries
+        uses: alexellis/upload-assets@0.2.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["./scripts.zip"]'
+        if: matrix.os == 'ubuntu-latest'
