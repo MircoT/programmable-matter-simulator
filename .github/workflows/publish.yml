@@ -24,7 +24,7 @@ jobs:
       - name: Make all
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            apt-get install libmesa-dev
+            sudo apt-get install libmesa-dev
             go build -o pmsim main.go
           elif [ "$RUNNER_OS" == "Windows" ]; then
             go build -o pmsim.exe main.go
