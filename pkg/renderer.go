@@ -30,14 +30,20 @@ const (
 )
 
 const (
-	ScreenWidth  = 800
-	ScreenHeight = 600
+	ScreenWidth    = 800
+	ScreenHeight   = 600
+	StatusBarDelay = 60
 )
 
 var (
 	mplusNormalFont font.Face
-	// mplusBigFont    font.Face
+	mplusBigFont    font.Face
 )
+
+type statusBarMsg struct {
+	msg   string
+	delay int
+}
 
 type Renderer struct {
 	phase    Phases
@@ -53,16 +59,19 @@ type Renderer struct {
 	c_column int
 	// offset_x     int
 	// offset_y     int
-	grid         [][]*Particle
-	edges        map[int]map[int]bool
-	engine       Engine
-	stateAssets  []*ebiten.Image
-	keys         []ebiten.Key
-	ticker       *time.Ticker
-	engineTick   chan int
-	round        int
-	guiDebug     bool
-	schedulerRes []interface{}
+	grid           [][]*Particle
+	edges          map[int]map[int]bool
+	engine         Engine
+	stateAssets    []*ebiten.Image
+	keys           []ebiten.Key
+	ticker         *time.Ticker
+	engineTick     chan int
+	round          int
+	guiDebug       bool
+	schedulerRes   []interface{}
+	statusBarMsgs  []statusBarMsg
+	statusBarDelay int
+	statusBarMsg   string
 }
 
 func (r *Renderer) drawCircle(screen *ebiten.Image, x, y, radius int, clr color.RGBA, fill bool) {
@@ -114,11 +123,31 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				// By default, nearest filter is used.
 				if particle.GetIStateN() == 1 {
 					screen.DrawImage(r.stateAssets[len(r.stateAssets)-1], op)
-				} else {
-					screen.DrawImage(r.stateAssets[curState-1], op)
 				}
+				screen.DrawImage(r.stateAssets[curState-1], op)
 			}
 		}
+	}
+}
+
+func (r *Renderer) drawStatusBar(screen *ebiten.Image) {
+	ebitenutil.DrawRect(screen, 0, ScreenHeight-28, ScreenWidth, ScreenHeight, color.RGBA{48, 48, 48, 196})
+	if r.statusBarMsg != "" {
+		text.Draw(screen, r.statusBarMsg, mplusBigFont, 6, ScreenHeight-8, color.White)
+	}
+
+	if len(r.statusBarMsgs) > 0 && r.statusBarMsg == "" {
+		curMsg := r.statusBarMsgs[0]
+		r.statusBarMsg = curMsg.msg
+		r.statusBarDelay = curMsg.delay
+		r.statusBarMsgs = r.statusBarMsgs[1:]
+	}
+
+	if r.statusBarDelay > 0 {
+		r.statusBarDelay -= 1
+	} else {
+		r.statusBarMsg = ""
+		r.statusBarDelay = StatusBarDelay
 	}
 }
 
@@ -235,14 +264,14 @@ func (r *Renderer) Init() error {
 		return err
 	}
 
-	// mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-	// 	Size:    16,
-	// 	DPI:     dpi,
-	// 	Hinting: font.HintingFull,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
+	mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    16,
+		DPI:     dpi,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		return err
+	}
 
 	r.ticker = time.NewTicker(500 * time.Millisecond)
 	r.engineTick = make(chan int)
@@ -310,6 +339,9 @@ func (r *Renderer) Init() error {
 	r.max_dist = r.hexSize / 2
 
 	r.edges = make(map[int]map[int]bool)
+	r.statusBarMsgs = make([]statusBarMsg, 0)
+	r.statusBarDelay = StatusBarDelay
+	r.statusBarMsg = ""
 
 	go r.updateEngine()
 
@@ -761,23 +793,33 @@ func (r *Renderer) Update() error {
 					if err := r.engine.Stop(); err != nil {
 						panic(err)
 					}
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation stop!", 21})
 				} else {
 					if err := r.engine.Start(); err != nil {
 						panic(err)
 					}
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation start!", 21})
 				}
 			}
 		case "L":
 			if inpututil.IsKeyJustPressed(p) {
 				if err := r.engine.LoadScripts(); err != nil {
-					panic(err)
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{fmt.Sprintf("%s", err), 120})
+				} else {
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Scripts reloaded...", StatusBarDelay})
 				}
 			}
 		case "R":
-			if inpututil.IsKeyJustPressed(p) || inpututil.IsKeyJustReleased(p) {
+			if inpututil.IsKeyJustPressed(p) {
 				if err := r.Init(); err != nil {
-					panic(err)
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{fmt.Sprintf("%s", err), 120})
+				} else {
+					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Engine reloaded...", StatusBarDelay})
 				}
+			}
+		case "D":
+			if inpututil.IsKeyJustPressed(p) {
+				r.guiDebug = !r.guiDebug
 			}
 		}
 	}
@@ -841,10 +883,6 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 			if inpututil.IsKeyJustPressed(p) {
 				screen.Fill(color.Black)
 			}
-		case "D":
-			if inpututil.IsKeyJustPressed(p) {
-				r.guiDebug = !r.guiDebug
-			}
 		}
 	}
 
@@ -854,6 +892,9 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f\nCursor: (%d,%d)\nRound: %d",
 			ebiten.CurrentTPS(), ebiten.CurrentFPS(), r.c_row, r.c_column, r.round))
 	}
+
+	r.drawStatusBar(screen)
+
 }
 
 func (r *Renderer) Layout(outsideWidth, outsideHeight int) (int, int) {
