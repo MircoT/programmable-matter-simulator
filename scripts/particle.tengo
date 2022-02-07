@@ -1,6 +1,10 @@
 fmt := import("fmt")
 
 transition := func(state, N1, N2, N1deg) {
+    if state != "CONTRACTED" {
+        return state
+    }
+
     numN1 := 0
     for n in N1 {
         if n == "CONTRACTED" {
