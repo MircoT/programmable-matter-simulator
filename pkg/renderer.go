@@ -33,11 +33,13 @@ const (
 	ScreenWidth    = 800
 	ScreenHeight   = 600
 	StatusBarDelay = 60
+	DefaultDPI     = 96
 )
 
 var (
-	mplusNormalFont font.Face
-	mplusBigFont    font.Face
+	mplusNormalFont    font.Face
+	mplusHelpMenuFont  font.Face
+	mplusStatusBarFont font.Face
 )
 
 type statusBarMsg struct {
@@ -66,6 +68,7 @@ type Renderer struct {
 	engineTick     chan int
 	round          int
 	guiDebug       bool
+	helpDialog     bool
 	schedulerRes   []interface{}
 	statusBarMsgs  []statusBarMsg
 	statusBarDelay int
@@ -128,10 +131,26 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 	}
 }
 
+func (r *Renderer) drawHelp(screen *ebiten.Image) {
+	ebitenutil.DrawRect(screen, 48, 48, ScreenWidth-(42*2), ScreenHeight-(42*2), color.RGBA{21, 21, 21, 196})
+	ebitenutil.DrawRect(screen, 42, 42, ScreenWidth-(42*2), ScreenHeight-(42*2), color.RGBA{96, 96, 96, 196})
+
+	text.Draw(screen, "------[Help dialog]------", mplusHelpMenuFont, ScreenWidth/2-196, ScreenHeight/2-196, color.White)
+
+	text.Draw(screen, "[Keys] -> Action", mplusHelpMenuFont, 55, ScreenHeight/3, color.White)
+	text.Draw(screen, " - [H] -> Show/Hide this dialog", mplusHelpMenuFont, 55, ScreenHeight/3+48, color.White)
+	text.Draw(screen, " - [R] -> Reload all engine", mplusHelpMenuFont, 55, ScreenHeight/3+48+42, color.White)
+	text.Draw(screen, " - [L] -> Reload scripts", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42, color.White)
+	text.Draw(screen, " - [Space] -> Start/Stop simulation", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42+42, color.White)
+	text.Draw(screen, " - [F] -> Enter/Exit fullscreen", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42+42+42, color.White)
+}
+
 func (r *Renderer) drawStatusBar(screen *ebiten.Image) {
-	ebitenutil.DrawRect(screen, 0, ScreenHeight-28, ScreenWidth, ScreenHeight, color.RGBA{48, 48, 48, 196})
+	ebitenutil.DrawRect(screen, 0, ScreenHeight-28, ScreenWidth, ScreenHeight, color.RGBA{21, 21, 21, 196})
+	ebitenutil.DrawRect(screen, 0, ScreenHeight-24, ScreenWidth, ScreenHeight, color.RGBA{96, 96, 96, 196})
+
 	if r.statusBarMsg != "" {
-		text.Draw(screen, r.statusBarMsg, mplusBigFont, 6, ScreenHeight-8, color.White)
+		text.Draw(screen, r.statusBarMsg, mplusStatusBarFont, 6, ScreenHeight-6, color.White)
 	}
 
 	if len(r.statusBarMsgs) > 0 && r.statusBarMsg == "" {
@@ -252,20 +271,27 @@ func (r *Renderer) Init() error {
 		return err
 	}
 
-	const dpi = 72
-
 	mplusNormalFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    11,
-		DPI:     dpi,
+		Size:    12,
+		DPI:     DefaultDPI,
 		Hinting: font.HintingFull,
 	})
 	if err != nil {
 		return err
 	}
 
-	mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    16,
-		DPI:     dpi,
+	mplusStatusBarFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    14,
+		DPI:     DefaultDPI,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		return err
+	}
+
+	mplusHelpMenuFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    24,
+		DPI:     DefaultDPI,
 		Hinting: font.HintingFull,
 	})
 	if err != nil {
@@ -795,6 +821,10 @@ func (r *Renderer) Update() error {
 			if inpututil.IsKeyJustPressed(p) {
 				r.guiDebug = !r.guiDebug
 			}
+		case "H":
+			if inpututil.IsKeyJustPressed(p) {
+				r.helpDialog = !r.helpDialog
+			}
 		case "F":
 			if inpututil.IsKeyJustPressed(p) {
 				ebiten.SetFullscreen(!ebiten.IsFullscreen())
@@ -872,6 +902,10 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	}
 
 	r.drawStatusBar(screen)
+
+	if r.helpDialog {
+		r.drawHelp(screen)
+	}
 
 }
 
