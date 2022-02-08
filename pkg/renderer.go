@@ -6,6 +6,8 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -132,6 +134,7 @@ func (r *Renderer) drawHelp(screen *ebiten.Image) {
 	text.Draw(screen, " - [L] -> Reload scripts", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42, color.White)
 	text.Draw(screen, " - [Space] -> Start/Stop simulation", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42+42, color.White)
 	text.Draw(screen, " - [F] -> Enter/Exit fullscreen", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42+42+42, color.White)
+	text.Draw(screen, " - [0..9] -> Select a particle script", mplusHelpMenuFont, 55, ScreenHeight/3+48+42+42+42+42+42, color.White)
 }
 
 func (r *Renderer) drawStatusBar(screen *ebiten.Image) {
@@ -532,6 +535,19 @@ func (r *Renderer) Update() error {
 		case "F":
 			if inpututil.IsKeyJustPressed(p) {
 				ebiten.SetFullscreen(!ebiten.IsFullscreen())
+			}
+		case "Digit0", "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9":
+			if inpututil.IsKeyJustPressed(p) {
+				digit := strings.ReplaceAll(p.String(), "Digit", "")
+				if idx, err := strconv.ParseInt(digit, 10, 0); err == nil {
+					if scriptName, err := r.engine.SelectScript(int(idx)); err != nil {
+						r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{fmt.Sprintf("%s", err), 120})
+					} else {
+						r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{fmt.Sprintf("Selected -> %s", scriptName), 60})
+					}
+				} else {
+					panic(err)
+				}
 			}
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"path"
 	"strconv"
 	"strings"
 
@@ -29,15 +30,17 @@ const (
 )
 
 type Engine struct {
-	phase           Phases
-	schedulerType   Scheduler
-	schedulerRes    []interface{}
-	grid            [][]*Particle
-	edges           map[int]map[int]bool
-	initScript      *tengo.Compiled
-	schedulerScript *tengo.Script
-	particleScript  *tengo.Script
-	running         bool
+	phase                  Phases
+	schedulerType          Scheduler
+	schedulerRes           []interface{}
+	grid                   [][]*Particle
+	edges                  map[int]map[int]bool
+	initScript             *tengo.Compiled
+	schedulerScript        *tengo.Script
+	particleScript         []*tengo.Script
+	particleScriptNames    []string
+	particleScriptSelected int
+	running                bool
 }
 
 func (e *Engine) Init(numRows, numCols int) error {
@@ -111,6 +114,10 @@ func (e *Engine) Stop() error {
 }
 
 func (e *Engine) LoadScripts() error {
+	e.particleScriptSelected = 0
+	e.particleScript = make([]*tengo.Script, 0)
+	e.particleScriptNames = make([]string, 0)
+
 	// Load tengo modules
 	modules := stdlib.GetModuleMap(stdlib.AllModuleNames()...)
 
@@ -134,13 +141,25 @@ func (e *Engine) LoadScripts() error {
 	e.schedulerScript = tengo.NewScript(fData)
 	e.schedulerScript.SetImports(modules) // Add tengo stdlib
 
-	fData, err = ioutil.ReadFile("scripts/particle.tengo")
+	files, err := ioutil.ReadDir("scripts/")
 	if err != nil {
 		return err
 	}
 
-	e.particleScript = tengo.NewScript(fData)
-	e.particleScript.SetImports(modules) // Add tengo stdlib
+	for _, file := range files {
+		if !file.IsDir() && strings.HasPrefix(file.Name(), "particle") && strings.HasSuffix(file.Name(), ".tengo") {
+			fData, err := ioutil.ReadFile(path.Join("scripts", file.Name()))
+			if err != nil {
+				return err
+			}
+
+			curScript := tengo.NewScript(fData)
+			curScript.SetImports(modules) // Add tengo stdlib
+
+			e.particleScript = append(e.particleScript, curScript)
+			e.particleScriptNames = append(e.particleScriptNames, file.Name())
+		}
+	}
 
 	// fmt.Println("scripts are loaded")
 
@@ -192,35 +211,46 @@ func (e *Engine) Scheduler(particles []interface{}, states []interface{}) ([]int
 	return activeParticles.Array(), nil
 }
 
+func (e *Engine) SelectScript(i int) (string, error) {
+	if i > len(e.particleScript) || i < 0 {
+		return "", fmt.Errorf("No script found at that index %d", i)
+	}
+
+	e.particleScriptSelected = ((i - 1) + len(e.particleScript)) % len(e.particleScript)
+
+	return e.particleScriptNames[e.particleScriptSelected], nil
+}
+
 func (e *Engine) Particle(p *Particle, neighbors1 []string, neighbors2 []string, neighbors1Deg []int) (string, error) {
+	curScript := e.particleScript[e.particleScriptSelected]
 	// inputs: state, l, r, ul, ur, ll, lr
-	err := e.particleScript.Add("state", p.GetStateS(nil))
+	err := curScript.Add("state", p.GetStateS(nil))
 	if err != nil {
 		return "", err
 	}
 
 	for i, s := range []string{"l", "r", "ul", "ur", "ll", "lr"} {
-		err := e.particleScript.Add(s, neighbors1[i])
+		err := curScript.Add(s, neighbors1[i])
 		if err != nil {
 			return "", err
 		}
 	}
 
 	for i, s := range []string{"l2", "r2", "u2l", "u2r", "l2l", "l2r"} {
-		err := e.particleScript.Add(s, neighbors2[i])
+		err := curScript.Add(s, neighbors2[i])
 		if err != nil {
 			return "", err
 		}
 	}
 
 	for i, s := range []string{"dl", "dr", "dul", "dur", "dll", "dlr"} {
-		err := e.particleScript.Add(s, neighbors1Deg[i])
+		err := curScript.Add(s, neighbors1Deg[i])
 		if err != nil {
 			return "", err
 		}
 	}
 
-	particleScriptCompiled, err := e.particleScript.Compile()
+	particleScriptCompiled, err := curScript.Compile()
 	if err != nil {
 		return "", err
 	}
