@@ -125,6 +125,7 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				if particle.GetIStateN() == 1 {
 					screen.DrawImage(r.stateAssets[len(r.stateAssets)-1], op)
 				}
+
 				screen.DrawImage(r.stateAssets[curState-1], op)
 			}
 		}
