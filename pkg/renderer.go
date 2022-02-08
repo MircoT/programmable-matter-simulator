@@ -168,7 +168,7 @@ func (r *Renderer) drawGrid(screen *ebiten.Image) {
 
 		ebitenutil.DrawLine(screen,
 			0., float64(cur_h), ScreenWidth, float64(cur_h),
-			color.RGBA{0, 0, 0, 196},
+			color.RGBA{142, 142, 142, 255},
 		)
 
 		for column := range columns {
@@ -179,10 +179,10 @@ func (r *Renderer) drawGrid(screen *ebiten.Image) {
 
 			ebitenutil.DrawLine(screen,
 				float64(cur_w), float64(cur_h), float64(cur_w-w_quarter), float64(next_h),
-				color.RGBA{0, 0, 0, 196})
+				color.RGBA{142, 142, 142, 255})
 			ebitenutil.DrawLine(screen,
 				float64(cur_w), float64(cur_h), float64(cur_w+w_quarter), float64(next_h),
-				color.RGBA{0, 0, 0, 196})
+				color.RGBA{142, 142, 142, 255})
 
 			if r.guiDebug {
 				msg := fmt.Sprintf("(%d,%d)", row, column)
