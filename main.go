@@ -15,7 +15,7 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(pkg.ScreenWidth, pkg.ScreenHeight)
-	ebiten.SetWindowTitle("Programmable Matter Simulator - Demo")
+	ebiten.SetWindowTitle("Programmable Matter Simulator")
 
 	if err := ebiten.RunGame(r); err != nil {
 		log.Fatal(err)
