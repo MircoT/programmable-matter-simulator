@@ -1,5 +1,6 @@
 rand := import("rand")
 
+scheduler_type := "SYNC"
 scheduler := func(all_particles, all_states) {
     to_awake := []
     idx := 0

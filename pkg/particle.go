@@ -22,22 +22,25 @@ const (
 )
 
 type Particle struct {
-	state  State
-	iState InnerState
-	round  int // the minimum of all contracted particle rounds is the current round
-	deg    int
-	n1     []string
-	n2     []string
+	state     State
+	nextState State
+	iState    InnerState
+	round     int // the minimum of all contracted particle rounds is the current round
+	deg       int
+	n1        []State
+	n2        []State
+	n1Deg     []int
 }
 
 func (p *Particle) Init() *Particle {
-	p.n1 = make([]string, 6)
-	p.n2 = make([]string, 6)
+	p.n1 = make([]State, 6)
+	p.n2 = make([]State, 6)
+	p.n1Deg = make([]int, 6)
 
 	return p
 }
 
-func (p *Particle) SetNeighbors(n1 []string, n2 []string) error {
+func (p *Particle) SetNeighbors(n1, n2 []State) error {
 	n := copy(p.n1, n1)
 	n += copy(p.n2, n2)
 
@@ -48,22 +51,31 @@ func (p *Particle) SetNeighbors(n1 []string, n2 []string) error {
 	return nil
 }
 
-func (p *Particle) GetNeighbors() ([]string, []string) {
-	return p.n1, p.n2
-}
-
-func (p *Particle) SetDeg(n int) error {
-	if n < 0 || n > 6 {
-		return fmt.Errorf("%d is not a valid degree number", n)
+func (p *Particle) SetNeighborsDeg(n1Deg []int) error {
+	if n := copy(p.n1Deg, n1Deg); n != 6 {
+		return fmt.Errorf("error on copy neighbors deg")
 	}
-
-	p.deg = n
 
 	return nil
 }
 
-func (p *Particle) GetDeg() int {
-	return p.deg
+func (p *Particle) GetNeighborsString() ([]string, []string) {
+	n1 := make([]string, 6)
+	n2 := make([]string, 6)
+
+	for i, n := range p.n1 {
+		pState := n
+		curState := p.GetStateS(&pState)
+		n1[i] = curState
+	}
+
+	for i, n := range p.n2 {
+		pState := n
+		curState := p.GetStateS(&pState)
+		n2[i] = curState
+	}
+
+	return n1, n2
 }
 
 func (p *Particle) SetStateN(n int) error {
@@ -91,6 +103,43 @@ func (p *Particle) SetStateN(n int) error {
 	return nil
 }
 
+func (p *Particle) GetStateN() int {
+	switch p.state {
+	case VOID:
+		return 0
+	case CONTRACTED:
+		return 1
+	case EXPANDEDL:
+		return 2
+	case EXPANDEDR:
+		return 3
+	case EXPANDEDUL:
+		return 4
+	case EXPANDEDUR:
+		return 5
+	case EXPANDEDLL:
+		return 6
+	case EXPANDEDLR:
+		return 7
+	}
+
+	return -1
+}
+
+func (p *Particle) SetDeg(n int) error {
+	if n < 0 || n > 6 {
+		return fmt.Errorf("%d is not a valid degree number", n)
+	}
+
+	p.deg = n
+
+	return nil
+}
+
+func (p *Particle) GetDeg() int {
+	return p.deg
+}
+
 func (p *Particle) SetStateS(s string) error {
 	switch s {
 	case "VOID":
@@ -116,42 +165,14 @@ func (p *Particle) SetStateS(s string) error {
 	return nil
 }
 
-func (p *Particle) GetIStateN() int {
-	switch p.iState {
-	case SLEEP:
-		return 0
-	case AWAKE:
-		return 1
+func (p *Particle) GetStateS(state *State) string {
+	var curState State
+	if state == nil {
+		curState = p.state
+	} else {
+		curState = *state
 	}
-
-	return -1
-}
-
-func (p *Particle) GetStateN() int {
-	switch p.state {
-	case VOID:
-		return 0
-	case CONTRACTED:
-		return 1
-	case EXPANDEDL:
-		return 2
-	case EXPANDEDR:
-		return 3
-	case EXPANDEDUL:
-		return 4
-	case EXPANDEDUR:
-		return 5
-	case EXPANDEDLL:
-		return 6
-	case EXPANDEDLR:
-		return 7
-	}
-
-	return -1
-}
-
-func (p *Particle) GetStateS() string {
-	switch p.state {
+	switch curState {
 	case VOID:
 		return "VOID"
 	case CONTRACTED:

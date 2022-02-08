@@ -101,7 +101,7 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				cur_w += w_quarter
 			}
 
-			if curState := particle.GetStateN(); curState != 0 {
+			if particle.state != VOID {
 				op := &ebiten.DrawImageOptions{}
 				scaleFactor := float64(r.hexSize) / 128.
 				center := (128. * scaleFactor) / 2.
@@ -110,11 +110,11 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				op.GeoM.Scale(scaleFactor, scaleFactor)
 				op.GeoM.Translate(float64(cur_w)-center, float64(cur_h)-center)
 				// By default, nearest filter is used.
-				if particle.GetIStateN() == 1 {
+				if particle.iState == AWAKE {
 					screen.DrawImage(r.stateAssets[len(r.stateAssets)-1], op)
 				}
 
-				screen.DrawImage(r.stateAssets[curState-1], op)
+				screen.DrawImage(r.stateAssets[particle.GetStateN()-1], op)
 			}
 		}
 	}
@@ -284,7 +284,7 @@ func (r *Renderer) Init() error {
 		return err
 	}
 
-	r.ticker = time.NewTicker(500 * time.Millisecond)
+	r.ticker = time.NewTicker(250 * time.Millisecond)
 	r.engineTick = make(chan int)
 	r.round = 0
 
