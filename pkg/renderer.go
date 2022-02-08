@@ -795,6 +795,10 @@ func (r *Renderer) Update() error {
 			if inpututil.IsKeyJustPressed(p) {
 				r.guiDebug = !r.guiDebug
 			}
+		case "F":
+			if inpututil.IsKeyJustPressed(p) {
+				ebiten.SetFullscreen(!ebiten.IsFullscreen())
+			}
 		}
 	}
 
