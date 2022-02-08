@@ -6,9 +6,6 @@ import (
 	"image/color"
 	"image/png"
 	"math"
-	"math/rand"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -20,13 +17,6 @@ import (
 	"golang.org/x/image/font/opentype"
 
 	"github.com/mircot/programmable-matter-simulator/assets"
-)
-
-type Phases int
-
-const (
-	SCHEDULER Phases = iota
-	UPDATE
 )
 
 const (
@@ -48,7 +38,6 @@ type statusBarMsg struct {
 }
 
 type Renderer struct {
-	phase    Phases
 	hexSize  int
 	w        int
 	h        int
@@ -69,7 +58,6 @@ type Renderer struct {
 	round          int
 	guiDebug       bool
 	helpDialog     bool
-	schedulerRes   []interface{}
 	statusBarMsgs  []statusBarMsg
 	statusBarDelay int
 	statusBarMsg   string
@@ -203,7 +191,6 @@ func (r *Renderer) drawGrid(screen *ebiten.Image) {
 
 func (r *Renderer) InitImages() error {
 	r.stateAssets = make([]*ebiten.Image, 0)
-	r.schedulerRes = make([]interface{}, 0)
 
 	img, err := png.Decode(bytes.NewReader(assets.Contracted))
 	if err != nil {
@@ -265,8 +252,6 @@ func (r *Renderer) InitImages() error {
 }
 
 func (r *Renderer) Init() error {
-	r.phase = SCHEDULER
-
 	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
 	if err != nil {
 		return err
@@ -344,7 +329,7 @@ func (r *Renderer) Init() error {
 	r.statusBarDelay = StatusBarDelay
 	r.statusBarMsg = ""
 
-	go r.updateEngine()
+	go r.engine.Update(&r.engineTick)
 
 	return nil
 }
@@ -489,295 +474,13 @@ func (r *Renderer) drawNeighbors(screen *ebiten.Image) {
 
 }
 
-// getRound: returns the current simulation round.
-// Tip: the minimum of all contracted particle rounds is the current round.
-func (r *Renderer) getRound() int {
-	min := math.MaxInt
-
-	for _, columns := range r.engine.grid {
-		for _, particle := range columns {
-			if particle.GetStateN() == 1 {
-				if round := particle.Round(); round < min {
-					min = round
-				}
-			}
-		}
-	}
-
-	return min
-}
-
-func (r *Renderer) getN1Degs(row, column int) (neighbors1Deg []int) {
-	neighbors1Deg = make([]int, 0)
-	// L
-	curRow := row
-	curCol := column - 1
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	// R
-	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	// UL
-	curRow = row - 1
-	curCol = column
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	// UR
-	curRow = row - 1
-	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	// LL
-	curRow = row + 1
-	curCol = column
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	// LR
-	curRow = row + 1
-	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, r.engine.grid[curRow][curCol].GetDeg())
-
-	return neighbors1Deg
-}
-
-func (r *Renderer) updateNeighbors() {
-	for row, columns := range r.engine.grid {
-		for column, particle := range columns {
-			if particle.GetStateN() > 0 {
-				neighbors1, neighbors2 := r.getNeighbors(row, column)
-				if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
-					panic(err)
-				}
-
-				deg := 0
-				if err := particle.SetDeg(deg); err != nil {
-					panic(err)
-				}
-
-				for _, neighbor := range neighbors1 {
-					if neighbor == "CONTRACTED" {
-						deg += 1
-					}
-				}
-
-				if err := particle.SetDeg(deg); err != nil {
-					panic(err)
-				}
-			}
-		}
-	}
-}
-
-func (r *Renderer) getNeighbors(row, column int) (neighbors1 []string, neighbors2 []string) {
-	neighbors1 = make([]string, 0)
-	neighbors2 = make([]string, 0)
-
-	// L
-	curRow := row
-	curCol := column - 1
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// R
-	curCol = column + 1
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// UL
-	curRow = row - 1
-	curCol = column
-	if curRow%2 == 0 {
-		curCol -= 1
-	}
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// UR
-	curRow = row - 1
-	curCol = column + 1
-	if curRow%2 == 0 {
-		curCol -= 1
-	}
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// LL
-	curRow = row + 1
-	curCol = column
-	if curRow%2 == 0 {
-		curCol -= 1
-	}
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// LR
-	curRow = row + 1
-	curCol = column + 1
-	if curRow%2 == 0 {
-		curCol -= 1
-	}
-	neighbors1 = append(neighbors1, r.engine.grid[curRow][curCol].GetStateS())
-
-	// 2L
-	curRow = row
-	curCol = column - 2
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	// 2R
-	curCol = column + 2
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	// U2L
-	curRow = row - 2
-	curCol = column - 1
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	// U2R
-	curRow = row - 2
-	curCol = column + 1
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	// L2L
-	curRow = row + 2
-	curCol = column - 1
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	// L2R
-	curRow = row + 2
-	curCol = column + 1
-	neighbors2 = append(neighbors2, r.engine.grid[curRow][curCol].GetStateS())
-
-	return neighbors1, neighbors2
-}
-
-func (r *Renderer) updateEngine() {
-	if r.engine.IsRunning() {
-		// fmt.Println("UPDATE ENGINE")
-
-		switch r.phase {
-		case SCHEDULER:
-			particles := make([]interface{}, 0)
-			states := make([]interface{}, 0)
-
-			for row, columns := range r.engine.grid {
-				for column, particle := range columns {
-					if curState := particle.GetStateN(); curState != 0 {
-						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
-						states = append(states, particle.GetStateS())
-					}
-				}
-			}
-
-			res, err := r.engine.Scheduler(particles, states)
-			if err != nil {
-				panic(err)
-			}
-			// fmt.Printf("Scheduler awakes: %s\n", res)
-
-			for i := range res {
-				j := rand.Intn(i + 1)
-				res[i], res[j] = res[j], res[i]
-			}
-
-			r.schedulerRes = make([]interface{}, len(res))
-			copy(r.schedulerRes, res)
-
-			for _, p := range res {
-				parsed, ok := p.(string)
-				if !ok {
-					panic(ok)
-				}
-
-				splitted := strings.Split(parsed, ",")
-
-				row, err := strconv.ParseInt(splitted[0], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				column, err := strconv.ParseInt(splitted[1], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				curParticle := r.engine.grid[row][column]
-				curParticle.Awake()
-			}
-
-			r.phase = UPDATE
-
-		case UPDATE:
-			for _, p := range r.schedulerRes {
-				parsed, ok := p.(string)
-				if !ok {
-					panic(ok)
-				}
-
-				splitted := strings.Split(parsed, ",")
-
-				row, err := strconv.ParseInt(splitted[0], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				column, err := strconv.ParseInt(splitted[1], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				curParticle := r.engine.grid[row][column]
-
-				if curParticle.GetIStateN() == 1 {
-					r.updateNeighbors()
-
-					neighbors1, neighbors2 := curParticle.GetNeighbors()
-					neighbors1Deg := r.getN1Degs(int(row), int(column))
-
-					// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r]
-					nextState, err := r.engine.Particle(curParticle, neighbors1, neighbors2, neighbors1Deg)
-					if err != nil {
-						panic(err)
-					}
-
-					if err := r.engine.grid[row][column].SetStateS(nextState); err != nil {
-						panic(err)
-					}
-					r.engine.grid[row][column].Sleep()
-
-					// fmt.Println(curState, nextState)
-
-					// if nextState == "CONTRACTED" {
-					// 	switch curState {
-					// 	case 2: // EXPANDEDL
-					// 		break
-					// 	case 3: // EXPANDEDR
-					// 		curP := r.engine.grid[row][column]
-					// 		r.engine.grid[row][column] = r.engine.grid[row][column+1]
-					// 		r.engine.grid[row][column+1] = curP
-					// 	case 4: // EXPANDEDUL
-					// 		break
-					// 	case 5: // EXPANDEDUR
-					// 		break
-					// 	case 6: // EXPANDEDLL
-					// 		break
-					// 	case 7: // EXPANDEDLR
-					// 		break
-					// 	}
-					// }
-				}
-			}
-
-			r.phase = SCHEDULER
-		}
-	}
-
-	r.engineTick <- r.getRound()
-}
-
 func (r *Renderer) Update() error {
 	select {
 	case <-r.ticker.C:
 		select {
 		case r.round = <-r.engineTick:
 			// fmt.Println("Engine Updated")
-
-			go r.updateEngine()
+			go r.engine.Update(&r.engineTick)
 		default:
 			// fmt.Println("Engine NOT Updated")
 		}

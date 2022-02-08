@@ -1,7 +1,10 @@
 package pkg
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -9,7 +12,16 @@ import (
 	"github.com/d5/tengo/v2/stdlib"
 )
 
+type Phases int
+
+const (
+	SCHEDULER Phases = iota
+	UPDATE
+)
+
 type Engine struct {
+	phase           Phases
+	schedulerRes    []interface{}
 	grid            [][]*Particle
 	edges           map[int]map[int]bool
 	initScript      *tengo.Compiled
@@ -19,6 +31,9 @@ type Engine struct {
 }
 
 func (e *Engine) Init(numRows, numCols int) error {
+	e.phase = SCHEDULER
+
+	e.schedulerRes = make([]interface{}, 0)
 	e.grid = make([][]*Particle, numRows)
 	e.edges = make(map[int]map[int]bool)
 
@@ -191,4 +206,287 @@ func (e *Engine) Particle(p *Particle, neighbors1 []string, neighbors2 []string,
 	nextState := particleScriptCompiled.Get("next_state")
 
 	return nextState.String(), nil
+}
+
+func (e *Engine) Update(eTick *chan int) {
+	if e.running {
+		// fmt.Println("UPDATE ENGINE")
+
+		switch e.phase {
+		case SCHEDULER:
+			particles := make([]interface{}, 0)
+			states := make([]interface{}, 0)
+
+			for row, columns := range e.grid {
+				for column, particle := range columns {
+					if curState := particle.GetStateN(); curState != 0 {
+						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
+						states = append(states, particle.GetStateS())
+					}
+				}
+			}
+
+			res, err := e.Scheduler(particles, states)
+			if err != nil {
+				panic(err)
+			}
+			// fmt.Printf("Scheduler awakes: %s\n", res)
+
+			for i := range res {
+				j := rand.Intn(i + 1)
+				res[i], res[j] = res[j], res[i]
+			}
+
+			e.schedulerRes = make([]interface{}, len(res))
+			copy(e.schedulerRes, res)
+
+			for _, p := range res {
+				parsed, ok := p.(string)
+				if !ok {
+					panic(ok)
+				}
+
+				splitted := strings.Split(parsed, ",")
+
+				row, err := strconv.ParseInt(splitted[0], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				column, err := strconv.ParseInt(splitted[1], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				curParticle := e.grid[row][column]
+				curParticle.Awake()
+			}
+
+			e.phase = UPDATE
+
+		case UPDATE:
+			for _, p := range e.schedulerRes {
+				parsed, ok := p.(string)
+				if !ok {
+					panic(ok)
+				}
+
+				splitted := strings.Split(parsed, ",")
+
+				row, err := strconv.ParseInt(splitted[0], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				column, err := strconv.ParseInt(splitted[1], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				curParticle := e.grid[row][column]
+
+				if curParticle.GetIStateN() == 1 {
+					e.updateNeighbors()
+
+					neighbors1, neighbors2 := curParticle.GetNeighbors()
+					neighbors1Deg := e.getN1Degs(int(row), int(column))
+
+					// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r]
+					nextState, err := e.Particle(curParticle, neighbors1, neighbors2, neighbors1Deg)
+					if err != nil {
+						panic(err)
+					}
+
+					if err := e.grid[row][column].SetStateS(nextState); err != nil {
+						panic(err)
+					}
+					e.grid[row][column].Sleep()
+
+					// fmt.Println(curState, nextState)
+
+					// if nextState == "CONTRACTED" {
+					// 	switch curState {
+					// 	case 2: // EXPANDEDL
+					// 		break
+					// 	case 3: // EXPANDEDR
+					// 		curP := e.grid[row][column]
+					// 		e.grid[row][column] = e.grid[row][column+1]
+					// 		e.grid[row][column+1] = curP
+					// 	case 4: // EXPANDEDUL
+					// 		break
+					// 	case 5: // EXPANDEDUR
+					// 		break
+					// 	case 6: // EXPANDEDLL
+					// 		break
+					// 	case 7: // EXPANDEDLR
+					// 		break
+					// 	}
+					// }
+				}
+			}
+
+			e.phase = SCHEDULER
+		}
+	}
+
+	if eTick != nil {
+		*eTick <- e.getRound()
+	}
+}
+
+func (e *Engine) getN1Degs(row, column int) (neighbors1Deg []int) {
+	neighbors1Deg = make([]int, 0)
+	// L
+	curRow := row
+	curCol := column - 1
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	// R
+	curCol = column + 1
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	// UL
+	curRow = row - 1
+	curCol = column
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	// UR
+	curRow = row - 1
+	curCol = column + 1
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	// LL
+	curRow = row + 1
+	curCol = column
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	// LR
+	curRow = row + 1
+	curCol = column + 1
+	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+
+	return neighbors1Deg
+}
+
+func (e *Engine) updateNeighbors() {
+	for row, columns := range e.grid {
+		for column, particle := range columns {
+			if particle.GetStateN() > 0 {
+				neighbors1, neighbors2 := e.getNeighbors(row, column)
+				if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
+					panic(err)
+				}
+
+				deg := 0
+				if err := particle.SetDeg(deg); err != nil {
+					panic(err)
+				}
+
+				for _, neighbor := range neighbors1 {
+					if neighbor == "CONTRACTED" {
+						deg += 1
+					}
+				}
+
+				if err := particle.SetDeg(deg); err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
+}
+
+// getRound: returns the current simulation round.
+// Tip: the minimum of all contracted particle rounds is the current round.
+func (e *Engine) getRound() int {
+	min := math.MaxInt
+
+	for _, columns := range e.grid {
+		for _, particle := range columns {
+			if particle.GetStateN() == 1 {
+				if round := particle.Round(); round < min {
+					min = round
+				}
+			}
+		}
+	}
+
+	return min
+}
+
+func (e *Engine) getNeighbors(row, column int) (neighbors1 []string, neighbors2 []string) {
+	neighbors1 = make([]string, 0)
+	neighbors2 = make([]string, 0)
+
+	// L
+	curRow := row
+	curCol := column - 1
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// R
+	curCol = column + 1
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// UL
+	curRow = row - 1
+	curCol = column
+	if curRow%2 == 0 {
+		curCol -= 1
+	}
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// UR
+	curRow = row - 1
+	curCol = column + 1
+	if curRow%2 == 0 {
+		curCol -= 1
+	}
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// LL
+	curRow = row + 1
+	curCol = column
+	if curRow%2 == 0 {
+		curCol -= 1
+	}
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// LR
+	curRow = row + 1
+	curCol = column + 1
+	if curRow%2 == 0 {
+		curCol -= 1
+	}
+	neighbors1 = append(neighbors1, e.grid[curRow][curCol].GetStateS())
+
+	// 2L
+	curRow = row
+	curCol = column - 2
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	// 2R
+	curCol = column + 2
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	// U2L
+	curRow = row - 2
+	curCol = column - 1
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	// U2R
+	curRow = row - 2
+	curCol = column + 1
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	// L2L
+	curRow = row + 2
+	curCol = column - 1
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	// L2R
+	curRow = row + 2
+	curCol = column + 1
+	neighbors2 = append(neighbors2, e.grid[curRow][curCol].GetStateS())
+
+	return neighbors1, neighbors2
 }
