@@ -2,59 +2,29 @@ fmt := import("fmt")
 
 transition := func(state, N1, N2, N1deg) {
     if state != "CONTRACTED" {
-        return state
+        if state == "EXPANDEDR" {
+            return "MOVER"
+        } else if state == "EXPANDEDL" {
+            return "MOVEL"
+        }
     }
 
     numN1 := 0
     for n in N1 {
-        if n == "CONTRACTED" {
+        if n != "VOID" {
             numN1 += 1
         }
     }
-    fmt.println(state, " ", numN1, " ", N1)
-    if numN1 == 1 || numN1 == 2 {
-        if N1[0] == "CONTRACTED" {
+    fmt.println(state, " ", numN1, " ", N1, " ", N1[0] == "VOID", " ", N1[1] == "VOID")
+
+    if numN1 > 0 {
+        if N1[0] == "VOID" {
             return "EXPANDEDL"
-        } else if N1[1] == "CONTRACTED" {
-            return "EXPANDEDR"
-        } else if N1[2] == "CONTRACTED" {
-            return "EXPANDEDUL"
-        } else if N1[3] == "CONTRACTED" {
-            return "EXPANDEDUR"
-        } else if N1[4] == "CONTRACTED" {
-            return "EXPANDEDLL"
-        } else if N1[5] == "CONTRACTED" {
-            return "EXPANDEDLR"
+        } else if N1[1] == "VOID" {
+             return "EXPANDEDR"
+        } else {
+            return "CONTRACTED"
         }
-    } 
-    if numN1 == 3 {
-        // [l, r, ul, ur, ll, lr]
-        // [0, 1,  2,  3,  4,  5]
-        all_r := [2, 5, 3, 1, 0, 4]
-        all_q := [0, 1, 2, 3, 4, 5]
-        all_s := [4, 3, 0, 2, 5, 1]
-        for i:=0; i<6; i++ {
-            r := all_r[i]
-            q := all_q[i]
-            s := all_s[i]
-            if N1[r] == "CONTRACTED" && N1[q] == "CONTRACTED" && N1[s] == "CONTRACTED" {
-                if N1deg[r] > 2 && N1deg[q] > 3 && N1deg[s] > 2 {
-                    if q == 0 {
-                        return "EXPANDEDL"
-                    } else if q == 1 {
-                        return "EXPANDEDR"
-                    } else if q == 2 {
-                        return "EXPANDEDUL"
-                    } else if q == 3 {
-                        return "EXPANDEDUR"
-                    } else if q == 4 {
-                        return "EXPANDEDLL"
-                    } else if q == 5 {
-                        return "EXPANDEDLR"
-                    }
-                }
-            } 
-        } 
     }
 
     return state

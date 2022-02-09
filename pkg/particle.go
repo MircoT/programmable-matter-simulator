@@ -14,12 +14,12 @@ const (
 	EXPANDEDUR // UPPER RIGHT
 	EXPANDEDLL // LOWER LEFT
 	EXPANDEDLR // LOWER RIGHT
-	MOVEDL     // LEFT
-	MOVEDR     // RIGHT
-	MOVEDUL    // UPPER LEFT
-	MOVEDUR    // UPPER RIGHT
-	MOVEDLL    // LOWER LEFT
-	MOVEDLR    // LOWER RIGHT
+	MOVEL      // LEFT
+	MOVER      // RIGHT
+	MOVEUL     // UPPER LEFT
+	MOVEUR     // UPPER RIGHT
+	MOVELL     // LOWER LEFT
+	MOVELR     // LOWER RIGHT
 )
 
 const (
@@ -102,6 +102,18 @@ func (p *Particle) SetStateN(n int) error {
 		p.state = EXPANDEDLL
 	case 7:
 		p.state = EXPANDEDLR
+	case 8:
+		p.state = MOVEL
+	case 9:
+		p.state = MOVER
+	case 10:
+		p.state = MOVEUL
+	case 11:
+		p.state = MOVEUR
+	case 12:
+		p.state = MOVELL
+	case 13:
+		p.state = MOVELR
 	default:
 		return fmt.Errorf("%d is not a valid state number", n)
 	}
@@ -127,6 +139,18 @@ func (p *Particle) GetStateN() int {
 		return 6
 	case EXPANDEDLR:
 		return 7
+	case MOVEL:
+		return 8
+	case MOVER:
+		return 9
+	case MOVEUL:
+		return 10
+	case MOVEUR:
+		return 11
+	case MOVELL:
+		return 12
+	case MOVELR:
+		return 13
 	}
 
 	return -1
@@ -164,6 +188,18 @@ func (p *Particle) SetStateS(s string) error {
 		p.state = EXPANDEDLL
 	case "EXPANDEDLR":
 		p.state = EXPANDEDLR
+	case "MOVEL":
+		p.state = MOVEL
+	case "MOVER":
+		p.state = MOVER
+	case "MOVEUL":
+		p.state = MOVEUL
+	case "MOVEUR":
+		p.state = MOVEUR
+	case "MOVELL":
+		p.state = MOVELL
+	case "MOVELR":
+		p.state = MOVELR
 	default:
 		return fmt.Errorf("'%s' is not a valid state number", s)
 	}
@@ -178,6 +214,7 @@ func (p *Particle) GetStateS(state *State) string {
 	} else {
 		curState = *state
 	}
+
 	switch curState {
 	case VOID:
 		return "VOID"
@@ -195,6 +232,18 @@ func (p *Particle) GetStateS(state *State) string {
 		return "EXPANDEDLL"
 	case EXPANDEDLR:
 		return "EXPANDEDLR"
+	case MOVEL:
+		return "MOVEL"
+	case MOVER:
+		return "MOVER"
+	case MOVEUL:
+		return "MOVEUL"
+	case MOVEUR:
+		return "MOVEUR"
+	case MOVELL:
+		return "MOVELL"
+	case MOVELR:
+		return "MOVELR"
 	}
 
 	return "UNKNOWN"

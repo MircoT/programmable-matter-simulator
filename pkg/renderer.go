@@ -193,6 +193,7 @@ func (r *Renderer) drawGrid(screen *ebiten.Image) {
 }
 
 func (r *Renderer) InitImages() error {
+	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, ,a]
 	r.stateAssets = make([]*ebiten.Image, 0)
 
 	img, err := png.Decode(bytes.NewReader(assets.Contracted))
@@ -243,6 +244,15 @@ func (r *Renderer) InitImages() error {
 	}
 
 	r.stateAssets = append(r.stateAssets, ebiten.NewImageFromImage(img))
+
+	//        [0  1  2  3   4   5   6   2  1  6   5   4   3]
+	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, ,a]
+	r.stateAssets = append(r.stateAssets, r.stateAssets[2])
+	r.stateAssets = append(r.stateAssets, r.stateAssets[1])
+	r.stateAssets = append(r.stateAssets, r.stateAssets[6])
+	r.stateAssets = append(r.stateAssets, r.stateAssets[5])
+	r.stateAssets = append(r.stateAssets, r.stateAssets[4])
+	r.stateAssets = append(r.stateAssets, r.stateAssets[3])
 
 	img, err = png.Decode(bytes.NewReader(assets.ContractedAwake))
 	if err != nil {
@@ -481,9 +491,9 @@ func (r *Renderer) Update() error {
 	select {
 	case <-r.ticker.C:
 		select {
-		case r.round = <-r.engineTick:
+		case round := <-r.engineTick:
 			// fmt.Println("Engine Updated")
-			go r.engine.Update(&r.engineTick)
+			r.round = round
 		default:
 			// fmt.Println("Engine NOT Updated")
 		}
@@ -497,14 +507,10 @@ func (r *Renderer) Update() error {
 		case "Space":
 			if inpututil.IsKeyJustPressed(p) {
 				if r.engine.IsRunning() {
-					if err := r.engine.Stop(); err != nil {
-						panic(err)
-					}
+					r.engine.Stop()
 					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation stop!", 21})
 				} else {
-					if err := r.engine.Start(); err != nil {
-						panic(err)
-					}
+					r.engine.Start()
 					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation start!", 21})
 				}
 			}

@@ -1,15 +1,18 @@
+fmt := import("fmt")
 rand := import("rand")
 
-scheduler_type := "SYNC"
+scheduler_type := "ASYNC"
 scheduler := func(all_particles, all_states) {
+    fmt.println(all_particles)
     to_awake := []
     idx := 0
     for state in all_states {
-        if rand.float() > 0.5 {
+        if rand.float() > 0.9 {
             to_awake = append(to_awake, all_particles[idx])
         }
         idx += 1
     }
+    fmt.println(to_awake)
     return to_awake
 }
 active_particles := scheduler(particles, states)
