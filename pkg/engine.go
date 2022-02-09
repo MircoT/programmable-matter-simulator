@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/stdlib"
@@ -29,6 +30,11 @@ const (
 	ASYNC
 )
 
+type asyncResult struct {
+	row, column int
+	nextState   State
+}
+
 type Engine struct {
 	phase                  Phases
 	schedulerType          Scheduler
@@ -41,6 +47,10 @@ type Engine struct {
 	particleScriptNames    []string
 	particleScriptSelected int
 	running                bool
+	asyncResults           chan asyncResult
+	asyncLookPhase         time.Duration
+	asyncComputePhase      time.Duration
+	asyncMovePhase         time.Duration
 }
 
 func (e *Engine) Init(numRows, numCols int) error {
@@ -50,6 +60,10 @@ func (e *Engine) Init(numRows, numCols int) error {
 	e.schedulerRes = make([]interface{}, 0)
 	e.grid = make([][]*Particle, numRows)
 	e.edges = make(map[int]map[int]bool)
+	e.asyncResults = make(chan asyncResult, numRows*numCols)
+	e.asyncLookPhase = 1 * time.Second
+	e.asyncComputePhase = 1 * time.Second
+	e.asyncMovePhase = 1 * time.Second
 
 	for i := range e.grid {
 		e.grid[i] = make([]*Particle, numCols)
@@ -92,6 +106,8 @@ func (e *Engine) InitGrid(initialState map[string]interface{}) error {
 		if err != nil {
 			panic(err)
 		}
+
+		e.grid[x][y].Sleep()
 	}
 
 	return nil
@@ -265,6 +281,17 @@ func (e *Engine) Particle(p *Particle, neighbors1 []string, neighbors2 []string,
 	return nextState.String(), nil
 }
 
+func (e *Engine) asyncTask(row, column int) {
+	fmt.Printf("[%d,%d]->LOOK\n", row, column)
+	time.Sleep(e.asyncLookPhase)
+	fmt.Printf("[%d,%d]->COMPUTE\n", row, column)
+	time.Sleep(e.asyncComputePhase)
+	fmt.Printf("[%d,%d]->MOVE\n", row, column)
+	time.Sleep(e.asyncMovePhase)
+
+	e.asyncResults <- asyncResult{row, column, CONTRACTED}
+}
+
 func (e *Engine) Update(eTick *chan int) {
 	if e.running {
 		// fmt.Println("UPDATE ENGINE")
@@ -412,9 +439,70 @@ func (e *Engine) Update(eTick *chan int) {
 
 				e.phase = SCHEDULER
 			}
+		} else if e.schedulerType == ASYNC {
+			particles := make([]interface{}, 0)
+			states := make([]interface{}, 0)
+
+			for row, columns := range e.grid {
+				for column, particle := range columns {
+					if particle.state != VOID {
+						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
+						states = append(states, particle.GetStateS(nil))
+					}
+				}
+			}
+
+			res, err := e.Scheduler(particles, states)
+			if err != nil {
+				panic(err)
+			}
+			// fmt.Printf("Scheduler awakes: %s\n", res)
+
+			for i := range res {
+				j := rand.Intn(i + 1)
+				res[i], res[j] = res[j], res[i]
+			}
+
+			e.schedulerRes = make([]interface{}, len(res))
+			copy(e.schedulerRes, res)
+
+			for _, p := range res {
+				parsed, ok := p.(string)
+				if !ok {
+					panic(ok)
+				}
+
+				splitted := strings.Split(parsed, ",")
+
+				row, err := strconv.ParseInt(splitted[0], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				column, err := strconv.ParseInt(splitted[1], 10, 0)
+				if err != nil {
+					panic(err)
+				}
+
+				curParticle := e.grid[row][column]
+
+				if curParticle.iState == SLEEP {
+					curParticle.Awake()
+					go e.asyncTask(int(row), int(column))
+				}
+			}
+
+			resultAvailable := true
+			for resultAvailable {
+				select {
+				case result := <-e.asyncResults:
+					curParticle := e.grid[result.row][result.column]
+					curParticle.Sleep()
+				default:
+					resultAvailable = false
+				}
+			}
 		}
-	} else if e.schedulerType == ASYNC {
-		// TODO
 	}
 
 	if eTick != nil {
