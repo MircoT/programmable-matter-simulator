@@ -579,6 +579,18 @@ func (e *Engine) Update(eTick *chan int) {
 						curParticle.nextState = EXPANDLL
 					case "EXPANDLR":
 						curParticle.nextState = EXPANDLR
+					case "MOVEL":
+						curParticle.nextState = MOVEL
+					case "MOVER":
+						curParticle.nextState = MOVER
+					case "MOVEUL":
+						curParticle.nextState = MOVEUL
+					case "MOVEUR":
+						curParticle.nextState = MOVEUR
+					case "MOVELL":
+						curParticle.nextState = MOVELL
+					case "MOVELR":
+						curParticle.nextState = MOVELR
 					default:
 						panic(fmt.Errorf("'%s' is not a valid state string", nextState))
 					}
@@ -609,8 +621,63 @@ func (e *Engine) Update(eTick *chan int) {
 				curParticle := e.grid[row][column]
 
 				if curParticle.iState == AWAKE {
-					curParticle.state = curParticle.nextState
-					curParticle.nextState = VOID
+					newRow := row
+					newCol := column
+
+					switch curParticle.nextState {
+					case EXPANDL, MOVEL:
+						newCol -= 1
+					case EXPANDR, MOVER:
+						newCol += 1
+					case EXPANDUL, MOVEUL:
+						newRow -= 1
+						if newRow%2 == 0 {
+							newCol -= 1
+						}
+					case EXPANDUR, MOVEUR:
+						newRow -= 1
+						if newRow%2 != 0 {
+							newCol += 1
+						}
+					case EXPANDLL, MOVELL:
+						newRow += 1
+						if newRow%2 == 0 {
+							newCol -= 1
+						}
+					case EXPANDLR, MOVELR:
+						newRow += 1
+						if newRow%2 != 0 {
+							newCol += 1
+						}
+					}
+
+					switch curParticle.nextState {
+					case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
+						if e.grid[newRow][newCol].state == VOID {
+							e.grid[newRow][newCol], e.grid[row][column] = e.grid[row][column], e.grid[newRow][newCol]
+						} else {
+							curParticle.moveFailed = true
+						}
+
+						curParticle.state = CONTRACTED
+						curParticle.nextState = VOID
+					case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
+						if curParticle.nextState != curParticle.state {
+							if e.grid[newRow][newCol].state != CONTRACTED {
+								curParticle.moveFailed = true
+								curParticle.state = CONTRACTED
+								curParticle.nextState = VOID
+							} else {
+								curParticle.state = curParticle.nextState
+								curParticle.nextState = VOID
+							}
+						} else {
+							curParticle.nextState = VOID
+						}
+					default:
+						curParticle.state = curParticle.nextState
+						curParticle.nextState = VOID
+					}
 
 					curParticle.Sleep()
 				}
@@ -758,9 +825,6 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 			}
 		}
 	} else {
-		e.asyncMu.RLock()
-		defer e.asyncMu.RUnlock()
-
 		particle := e.grid[iRow][iCol]
 		neighbors1, neighbors2 := e.getNeighbors(iRow, iCol)
 		if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
