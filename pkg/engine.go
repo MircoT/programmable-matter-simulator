@@ -89,7 +89,7 @@ func (e *Engine) Init(numRows, numCols int) error {
 	}
 
 	if !e.asyncLoopRunning {
-		go e.asyncUpdate()
+		go e.asyncUpdateController()
 		e.asyncLoopRunning = true
 	}
 
@@ -392,7 +392,7 @@ func (e *Engine) asyncTask(row, column int) {
 	e.asyncResults <- asyncResult{row, column}
 }
 
-func (e *Engine) asyncUpdate() {
+func (e *Engine) asyncUpdateController() {
 	for {
 		select {
 		case result := <-e.asyncResults:
@@ -464,228 +464,9 @@ func (e *Engine) asyncUpdate() {
 	}
 }
 
-func (e *Engine) Update(eTick *chan int) {
-	fmt.Printf("UPDATE ENGINE %t\n", e.running)
-
-	if !e.running {
-		return
-	}
-
-	if e.schedulerType == SYNC {
-		switch e.phase {
-		case SCHEDULER:
-			particles := make([]interface{}, 0)
-			states := make([]interface{}, 0)
-
-			for row, columns := range e.grid {
-				for column, particle := range columns {
-					if particle.state != VOID && particle.state != OBSTACLE {
-						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
-						states = append(states, particle.GetStateS(nil))
-					}
-				}
-			}
-
-			fmt.Println("SYNC SCHEDULER")
-			res, err := e.Scheduler(particles, states)
-			if err != nil {
-				panic(err)
-			}
-			// fmt.Printf("Scheduler awakes: %s\n", res)
-
-			for i := range res {
-				j := rand.Intn(i + 1)
-				res[i], res[j] = res[j], res[i]
-			}
-
-			e.schedulerRes = make([]interface{}, len(res))
-			copy(e.schedulerRes, res)
-
-			for _, p := range e.schedulerRes {
-				parsed, ok := p.(string)
-				if !ok {
-					panic(ok)
-				}
-
-				splitted := strings.Split(parsed, ",")
-
-				row, err := strconv.ParseInt(splitted[0], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				column, err := strconv.ParseInt(splitted[1], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				curParticle := e.grid[row][column]
-				if awoken := curParticle.Awake(); !awoken {
-					panic("cannot awake particle...")
-				}
-			}
-
-			e.phase = LOOK
-
-		case LOOK:
-			e.updateNeighbors(-1, -1)
-
-			e.phase = COMPUTE
-
-		case COMPUTE:
-			for _, p := range e.schedulerRes {
-				parsed, ok := p.(string)
-				if !ok {
-					panic(ok)
-				}
-
-				splitted := strings.Split(parsed, ",")
-
-				row, err := strconv.ParseInt(splitted[0], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				column, err := strconv.ParseInt(splitted[1], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				curParticle := e.grid[row][column]
-
-				if curParticle.iState == AWAKE {
-					neighbors1, neighbors2 := curParticle.GetNeighborsString()
-
-					// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r], [lDeg, rDeg, ulDeg, urDeg, llDeg, lrDeg]
-					nextState, err := e.Particle(curParticle, neighbors1, neighbors2, curParticle.n1Deg)
-					if err != nil {
-						panic(err)
-					}
-
-					switch nextState {
-					case "VOID":
-						curParticle.nextState = VOID
-					case "CONTRACTED":
-						curParticle.nextState = CONTRACTED
-					case "EXPANDL":
-						curParticle.nextState = EXPANDL
-					case "EXPANDR":
-						curParticle.nextState = EXPANDR
-					case "EXPANDUL":
-						curParticle.nextState = EXPANDUL
-					case "EXPANDUR":
-						curParticle.nextState = EXPANDUR
-					case "EXPANDLL":
-						curParticle.nextState = EXPANDLL
-					case "EXPANDLR":
-						curParticle.nextState = EXPANDLR
-					case "MOVEL":
-						curParticle.nextState = MOVEL
-					case "MOVER":
-						curParticle.nextState = MOVER
-					case "MOVEUL":
-						curParticle.nextState = MOVEUL
-					case "MOVEUR":
-						curParticle.nextState = MOVEUR
-					case "MOVELL":
-						curParticle.nextState = MOVELL
-					case "MOVELR":
-						curParticle.nextState = MOVELR
-					default:
-						panic(fmt.Errorf("'%s' is not a valid state string", nextState))
-					}
-				}
-			}
-
-			e.phase = MOVE
-
-		case MOVE:
-			for _, p := range e.schedulerRes {
-				parsed, ok := p.(string)
-				if !ok {
-					panic(ok)
-				}
-
-				splitted := strings.Split(parsed, ",")
-
-				row, err := strconv.ParseInt(splitted[0], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				column, err := strconv.ParseInt(splitted[1], 10, 0)
-				if err != nil {
-					panic(err)
-				}
-
-				curParticle := e.grid[row][column]
-
-				if curParticle.iState == AWAKE {
-					newRow := row
-					newCol := column
-
-					switch curParticle.nextState {
-					case EXPANDL, MOVEL:
-						newCol -= 1
-					case EXPANDR, MOVER:
-						newCol += 1
-					case EXPANDUL, MOVEUL:
-						newRow -= 1
-						if newRow%2 == 0 {
-							newCol -= 1
-						}
-					case EXPANDUR, MOVEUR:
-						newRow -= 1
-						if newRow%2 != 0 {
-							newCol += 1
-						}
-					case EXPANDLL, MOVELL:
-						newRow += 1
-						if newRow%2 == 0 {
-							newCol -= 1
-						}
-					case EXPANDLR, MOVELR:
-						newRow += 1
-						if newRow%2 != 0 {
-							newCol += 1
-						}
-					}
-
-					switch curParticle.nextState {
-					case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
-						if e.grid[newRow][newCol].state == VOID {
-							e.grid[newRow][newCol], e.grid[row][column] = e.grid[row][column], e.grid[newRow][newCol]
-						} else {
-							curParticle.moveFailed = true
-						}
-
-						curParticle.state = CONTRACTED
-						curParticle.nextState = VOID
-					case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
-						if curParticle.nextState != curParticle.state {
-							if e.grid[newRow][newCol].state != CONTRACTED {
-								curParticle.moveFailed = true
-								curParticle.state = CONTRACTED
-								curParticle.nextState = VOID
-							} else {
-								curParticle.state = curParticle.nextState
-								curParticle.nextState = VOID
-							}
-						} else {
-							curParticle.nextState = VOID
-						}
-					default:
-						curParticle.state = curParticle.nextState
-						curParticle.nextState = VOID
-					}
-
-					curParticle.Sleep()
-				}
-			}
-
-			e.phase = SCHEDULER
-		}
-	} else if e.schedulerType == ASYNC {
+func (e *Engine) syncUpdate() {
+	switch e.phase {
+	case SCHEDULER:
 		particles := make([]interface{}, 0)
 		states := make([]interface{}, 0)
 
@@ -698,14 +479,12 @@ func (e *Engine) Update(eTick *chan int) {
 			}
 		}
 
-		fmt.Println("ASYNC SCHEDULER")
-
+		fmt.Println("SYNC SCHEDULER")
 		res, err := e.Scheduler(particles, states)
 		if err != nil {
 			panic(err)
 		}
-
-		fmt.Printf("Scheduler awakes: %s\n", res)
+		// fmt.Printf("Scheduler awakes: %s\n", res)
 
 		for i := range res {
 			j := rand.Intn(i + 1)
@@ -714,8 +493,6 @@ func (e *Engine) Update(eTick *chan int) {
 
 		e.schedulerRes = make([]interface{}, len(res))
 		copy(e.schedulerRes, res)
-
-		fmt.Println(e.schedulerRes)
 
 		for _, p := range e.schedulerRes {
 			parsed, ok := p.(string)
@@ -735,15 +512,250 @@ func (e *Engine) Update(eTick *chan int) {
 				panic(err)
 			}
 
-			fmt.Printf("LAUNCH [%d,%d]\n", row, column)
-
-			e.asyncMu.Lock()
-			if !e.asyncGridAwoken[row][column] {
-				e.asyncGridAwoken[row][column] = true
-				go e.asyncTask(int(row), int(column))
+			curParticle := e.grid[row][column]
+			if awoken := curParticle.Awake(); !awoken {
+				panic("cannot awake particle...")
 			}
-			e.asyncMu.Unlock()
 		}
+
+		e.phase = LOOK
+
+	case LOOK:
+		e.updateNeighbors(-1, -1)
+
+		e.phase = COMPUTE
+
+	case COMPUTE:
+		for _, p := range e.schedulerRes {
+			parsed, ok := p.(string)
+			if !ok {
+				panic(ok)
+			}
+
+			splitted := strings.Split(parsed, ",")
+
+			row, err := strconv.ParseInt(splitted[0], 10, 0)
+			if err != nil {
+				panic(err)
+			}
+
+			column, err := strconv.ParseInt(splitted[1], 10, 0)
+			if err != nil {
+				panic(err)
+			}
+
+			curParticle := e.grid[row][column]
+
+			if curParticle.iState == AWAKE {
+				neighbors1, neighbors2 := curParticle.GetNeighborsString()
+
+				// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r], [lDeg, rDeg, ulDeg, urDeg, llDeg, lrDeg]
+				nextState, err := e.Particle(curParticle, neighbors1, neighbors2, curParticle.n1Deg)
+				if err != nil {
+					panic(err)
+				}
+
+				switch nextState {
+				case "VOID":
+					curParticle.nextState = VOID
+				case "CONTRACTED":
+					curParticle.nextState = CONTRACTED
+				case "EXPANDL":
+					curParticle.nextState = EXPANDL
+				case "EXPANDR":
+					curParticle.nextState = EXPANDR
+				case "EXPANDUL":
+					curParticle.nextState = EXPANDUL
+				case "EXPANDUR":
+					curParticle.nextState = EXPANDUR
+				case "EXPANDLL":
+					curParticle.nextState = EXPANDLL
+				case "EXPANDLR":
+					curParticle.nextState = EXPANDLR
+				case "MOVEL":
+					curParticle.nextState = MOVEL
+				case "MOVER":
+					curParticle.nextState = MOVER
+				case "MOVEUL":
+					curParticle.nextState = MOVEUL
+				case "MOVEUR":
+					curParticle.nextState = MOVEUR
+				case "MOVELL":
+					curParticle.nextState = MOVELL
+				case "MOVELR":
+					curParticle.nextState = MOVELR
+				default:
+					panic(fmt.Errorf("'%s' is not a valid state string", nextState))
+				}
+			}
+		}
+
+		e.phase = MOVE
+
+	case MOVE:
+		for _, p := range e.schedulerRes {
+			parsed, ok := p.(string)
+			if !ok {
+				panic(ok)
+			}
+
+			splitted := strings.Split(parsed, ",")
+
+			row, err := strconv.ParseInt(splitted[0], 10, 0)
+			if err != nil {
+				panic(err)
+			}
+
+			column, err := strconv.ParseInt(splitted[1], 10, 0)
+			if err != nil {
+				panic(err)
+			}
+
+			curParticle := e.grid[row][column]
+
+			if curParticle.iState == AWAKE {
+				newRow := row
+				newCol := column
+
+				switch curParticle.nextState {
+				case EXPANDL, MOVEL:
+					newCol -= 1
+				case EXPANDR, MOVER:
+					newCol += 1
+				case EXPANDUL, MOVEUL:
+					newRow -= 1
+					if newRow%2 == 0 {
+						newCol -= 1
+					}
+				case EXPANDUR, MOVEUR:
+					newRow -= 1
+					if newRow%2 != 0 {
+						newCol += 1
+					}
+				case EXPANDLL, MOVELL:
+					newRow += 1
+					if newRow%2 == 0 {
+						newCol -= 1
+					}
+				case EXPANDLR, MOVELR:
+					newRow += 1
+					if newRow%2 != 0 {
+						newCol += 1
+					}
+				}
+
+				fmt.Printf("NEXT STATE: %d\n", curParticle.nextState)
+
+				switch curParticle.nextState {
+				case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
+					fmt.Printf("MOVE: %d to -> %d\n", curParticle.nextState, e.grid[newRow][newCol].state)
+					if e.grid[newRow][newCol].state == VOID {
+						e.grid[newRow][newCol], e.grid[row][column] = e.grid[row][column], e.grid[newRow][newCol]
+					} else {
+						curParticle.moveFailed = true
+					}
+
+					curParticle.state = CONTRACTED
+					curParticle.nextState = VOID
+				case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
+					if curParticle.nextState != curParticle.state {
+						if e.grid[newRow][newCol].state != VOID && e.grid[newRow][newCol].state != CONTRACTED {
+							curParticle.moveFailed = true
+							curParticle.state = CONTRACTED
+							curParticle.nextState = VOID
+						} else {
+							curParticle.state = curParticle.nextState
+							curParticle.nextState = VOID
+						}
+					} else {
+						curParticle.nextState = VOID
+					}
+				default:
+					curParticle.state = curParticle.nextState
+					curParticle.nextState = VOID
+				}
+
+				curParticle.Sleep()
+			}
+		}
+
+		e.phase = SCHEDULER
+	}
+}
+
+func (e *Engine) asyncUpdate() {
+	particles := make([]interface{}, 0)
+	states := make([]interface{}, 0)
+
+	for row, columns := range e.grid {
+		for column, particle := range columns {
+			if particle.state != VOID && particle.state != OBSTACLE {
+				particles = append(particles, fmt.Sprintf("%d,%d", row, column))
+				states = append(states, particle.GetStateS(nil))
+			}
+		}
+	}
+
+	fmt.Println("ASYNC SCHEDULER")
+
+	res, err := e.Scheduler(particles, states)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Scheduler awakes: %s\n", res)
+
+	for i := range res {
+		j := rand.Intn(i + 1)
+		res[i], res[j] = res[j], res[i]
+	}
+
+	e.schedulerRes = make([]interface{}, len(res))
+	copy(e.schedulerRes, res)
+
+	fmt.Println(e.schedulerRes)
+
+	for _, p := range e.schedulerRes {
+		parsed, ok := p.(string)
+		if !ok {
+			panic(ok)
+		}
+
+		splitted := strings.Split(parsed, ",")
+
+		row, err := strconv.ParseInt(splitted[0], 10, 0)
+		if err != nil {
+			panic(err)
+		}
+
+		column, err := strconv.ParseInt(splitted[1], 10, 0)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("LAUNCH [%d,%d]\n", row, column)
+
+		e.asyncMu.Lock()
+		if !e.asyncGridAwoken[row][column] {
+			e.asyncGridAwoken[row][column] = true
+			go e.asyncTask(int(row), int(column))
+		}
+		e.asyncMu.Unlock()
+	}
+}
+
+func (e *Engine) Update(eTick *chan int) {
+	fmt.Printf("UPDATE ENGINE %t\n", e.running)
+
+	if !e.running {
+		return
+	}
+
+	switch e.schedulerType {
+	case SYNC:
+		e.syncUpdate()
+	case ASYNC:
+		e.asyncUpdate()
 	}
 
 	if eTick != nil {
