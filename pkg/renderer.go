@@ -113,7 +113,7 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				op.GeoM.Translate(float64(cur_w)-center, float64(cur_h)-center)
 				// By default, nearest filter is used.
 				if particle.moveFailed {
-					r.drawCircle(screen, cur_w, cur_h, 16, color.RGBA{242, 0, 0, 10}, true)
+					r.drawCircle(screen, cur_w, cur_h, int(float64(32)*scaleFactor), color.RGBA{242, 0, 0, 10}, true)
 				}
 
 				if particle.iState == AWAKE {
@@ -353,8 +353,6 @@ func (r *Renderer) Init() error {
 	r.statusBarDelay = StatusBarDelay
 	r.statusBarMsg = ""
 
-	go r.engine.Update(&r.engineTick)
-
 	return nil
 }
 
@@ -505,9 +503,11 @@ func (r *Renderer) Update() error {
 		case round := <-r.engineTick:
 			// fmt.Println("Engine Updated")
 			r.round = round
+			go r.engine.Update(&r.engineTick)
 		default:
-			// fmt.Println("Engine NOT Updated")
+			// pass
 		}
+
 	default:
 	}
 
@@ -522,6 +522,7 @@ func (r *Renderer) Update() error {
 					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation stop!", 21})
 				} else {
 					r.engine.Start()
+					go r.engine.Update(&r.engineTick)
 					r.statusBarMsgs = append(r.statusBarMsgs, statusBarMsg{"Simulation start!", 21})
 				}
 			}
