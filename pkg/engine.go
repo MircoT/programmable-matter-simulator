@@ -49,11 +49,12 @@ type Engine struct {
 	running                bool
 	asyncLoopRunning       bool
 	asyncResults           chan asyncResult
-	asyncInitPhase         time.Duration
-	asyncLookPhase         time.Duration
-	asyncComputePhase      time.Duration
-	asyncMovePhase         time.Duration
+	asyncInitPhase         int
+	asyncLookPhase         int
+	asyncComputePhase      int
+	asyncMovePhase         int
 	asyncMu                sync.RWMutex
+	asyncGridAwoken        [][]bool
 }
 
 func (e *Engine) Init(numRows, numCols int) error {
@@ -66,15 +67,17 @@ func (e *Engine) Init(numRows, numCols int) error {
 
 	e.schedulerRes = make([]interface{}, 0)
 	e.grid = make([][]*Particle, numRows)
+	e.asyncGridAwoken = make([][]bool, numRows)
 	e.edges = make(map[int]map[int]bool)
 	e.asyncResults = make(chan asyncResult, numRows*numCols)
-	e.asyncInitPhase = 250 * time.Millisecond
-	e.asyncLookPhase = 250 * time.Millisecond
-	e.asyncComputePhase = 250 * time.Millisecond
-	e.asyncMovePhase = 250 * time.Millisecond
+	e.asyncInitPhase = 1000    // max time to wait = 1000 milliseconds
+	e.asyncLookPhase = 1000    // max time to wait = 1000 milliseconds
+	e.asyncComputePhase = 1000 // max time to wait = 1000 milliseconds
+	e.asyncMovePhase = 1000    // max time to wait = 1000 milliseconds
 
 	for i := range e.grid {
 		e.grid[i] = make([]*Particle, numCols)
+		e.asyncGridAwoken[i] = make([]bool, numCols)
 	}
 
 	for row, columns := range e.grid {
@@ -140,7 +143,6 @@ func (e *Engine) Stop() {
 }
 
 func (e *Engine) LoadScripts() error {
-	e.particleScriptSelected = 0
 	e.particleScript = make([]*tengo.Script, 0)
 	e.particleScriptNames = make([]string, 0)
 
@@ -251,6 +253,8 @@ func (e *Engine) Particle(p *Particle, neighbors1 []string, neighbors2 []string,
 	e.asyncMu.Lock()
 	defer e.asyncMu.Unlock()
 
+	p.moveFailed = false
+
 	curScript := e.particleScript[e.particleScriptSelected]
 	// inputs: state, l, r, ul, ur, ll, lr
 	err := curScript.Add("state", p.GetStateS(nil))
@@ -294,76 +298,103 @@ func (e *Engine) Particle(p *Particle, neighbors1 []string, neighbors2 []string,
 	return nextState.String(), nil
 }
 
+func (e *Engine) randDuration(max, perc int) time.Duration {
+	var val int
+
+	if perc < 0 || perc > 100 {
+		randN := rand.Intn(101)
+		val = (max * randN) / 100
+	} else {
+		val = (max * perc) / 100
+	}
+
+	return time.Duration(val * int(time.Millisecond))
+}
+
 func (e *Engine) asyncTask(row, column int) {
 	curParticle := e.grid[row][column]
 
 	fmt.Printf("[%d,%d]->iSTATE:%d\n", row, column, curParticle.iState)
-	if awoken := curParticle.Awake(); awoken {
 
-		fmt.Printf("[%d,%d]->LOOK\n", row, column)
+	fmt.Printf("[%d,%d]->INIT\n", row, column)
+	time.Sleep(e.randDuration(e.asyncInitPhase, -1))
 
-		e.updateNeighbors(row, column)
+	e.asyncMu.Lock()
+	fmt.Printf("[%d,%d]->AWOKEN: %t\n", row, column, e.asyncGridAwoken[row][column])
+	if !e.asyncGridAwoken[row][column] {
+		e.asyncGridAwoken[row][column] = true
+		e.asyncMu.Unlock()
+	} else {
+		e.asyncMu.Unlock()
 
-		time.Sleep(e.asyncLookPhase)
-
-		fmt.Printf("[%d,%d]->COMPUTE\n", row, column)
-
-		neighbors1, neighbors2 := curParticle.GetNeighborsString()
-
-		// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r], [lDeg, rDeg, ulDeg, urDeg, llDeg, lrDeg]
-		nextStateS, err := e.Particle(curParticle, neighbors1, neighbors2, curParticle.n1Deg)
-		if err != nil {
-			panic(err)
-		}
-
-		time.Sleep(e.asyncComputePhase)
-
-		fmt.Printf("[%d,%d]->MOVE\n", row, column)
-
-		switch nextStateS {
-		case "VOID":
-			curParticle.state = VOID
-		case "CONTRACTED":
-			curParticle.state = CONTRACTED
-		case "EXPANDEDL":
-			curParticle.state = EXPANDEDL
-		case "EXPANDEDR":
-			curParticle.state = EXPANDEDR
-		case "EXPANDEDUL":
-			curParticle.state = EXPANDEDUL
-		case "EXPANDEDUR":
-			curParticle.state = EXPANDEDUR
-		case "EXPANDEDLL":
-			curParticle.state = EXPANDEDLL
-		case "EXPANDEDLR":
-			curParticle.state = EXPANDEDLR
-		case "MOVEL":
-			curParticle.nextState = MOVEL
-		case "MOVER":
-			curParticle.nextState = MOVER
-		case "MOVEUL":
-			curParticle.nextState = MOVEUL
-		case "MOVEUR":
-			curParticle.nextState = MOVEUR
-		case "MOVELL":
-			curParticle.nextState = MOVELL
-		case "MOVELR":
-			curParticle.nextState = MOVELR
-		default:
-			panic(fmt.Errorf("'%s' is not a valid state string", nextStateS))
-		}
-
-		time.Sleep(e.asyncMovePhase)
-
-		e.asyncResults <- asyncResult{row, column}
+		return
 	}
+
+	curParticle.Awake()
+
+	fmt.Printf("[%d,%d]->LOOK\n", row, column)
+
+	e.updateNeighbors(row, column)
+
+	time.Sleep(e.randDuration(e.asyncLookPhase, -1))
+
+	fmt.Printf("[%d,%d]->COMPUTE\n", row, column)
+
+	neighbors1, neighbors2 := curParticle.GetNeighborsString()
+
+	// inputs: state, [l, r, ul, ur, ll, lr], [2l, 2r, u2l, u2r, l2l, l2r], [lDeg, rDeg, ulDeg, urDeg, llDeg, lrDeg]
+	nextStateS, err := e.Particle(curParticle, neighbors1, neighbors2, curParticle.n1Deg)
+	if err != nil {
+		panic(err)
+	}
+
+	time.Sleep(e.randDuration(e.asyncComputePhase, -1))
+
+	fmt.Printf("[%d,%d]->MOVE\n", row, column)
+
+	switch nextStateS {
+	case "VOID":
+		curParticle.state = VOID
+	case "CONTRACTED":
+		curParticle.state = CONTRACTED
+	case "EXPANDL":
+		curParticle.state = EXPANDL
+	case "EXPANDR":
+		curParticle.state = EXPANDR
+	case "EXPANDUL":
+		curParticle.state = EXPANDUL
+	case "EXPANDUR":
+		curParticle.state = EXPANDUR
+	case "EXPANDLL":
+		curParticle.state = EXPANDLL
+	case "EXPANDLR":
+		curParticle.state = EXPANDLR
+	case "MOVEL":
+		curParticle.nextState = MOVEL
+	case "MOVER":
+		curParticle.nextState = MOVER
+	case "MOVEUL":
+		curParticle.nextState = MOVEUL
+	case "MOVEUR":
+		curParticle.nextState = MOVEUR
+	case "MOVELL":
+		curParticle.nextState = MOVELL
+	case "MOVELR":
+		curParticle.nextState = MOVELR
+	default:
+		panic(fmt.Errorf("'%s' is not a valid state string", nextStateS))
+	}
+
+	time.Sleep(e.randDuration(e.asyncMovePhase, -1))
+
+	e.asyncResults <- asyncResult{row, column}
+
 }
 
 func (e *Engine) asyncUpdate() {
 	for {
 		select {
 		case result := <-e.asyncResults:
-			e.asyncMu.Lock()
 			fmt.Printf("SLEEP [%d,%d]\n", result.row, result.column)
 
 			curParticle := e.grid[result.row][result.column]
@@ -375,23 +406,30 @@ func (e *Engine) asyncUpdate() {
 					fmt.Printf("MOVE LEFT -> %d\n", e.grid[result.row][newCol].state)
 					if e.grid[result.row][newCol].state == VOID {
 						e.grid[result.row][newCol], e.grid[result.row][result.column] = e.grid[result.row][result.column], e.grid[result.row][newCol]
+					} else {
+						curParticle.moveFailed = true
 					}
+
 					curParticle.state = CONTRACTED
 				case MOVER:
 					newCol := result.column + 1
 					fmt.Printf("MOVE RIGHT -> %d\n", e.grid[result.row][newCol].state)
 					if e.grid[result.row][newCol].state == VOID {
 						e.grid[result.row][newCol], e.grid[result.row][result.column] = e.grid[result.row][result.column], e.grid[result.row][newCol]
+					} else {
+						curParticle.moveFailed = true
 					}
+
 					curParticle.state = CONTRACTED
 				}
+
+				curParticle.nextState = VOID
 			}
 
-			if sleeping := curParticle.Sleep(); !sleeping {
-				panic("cannot turn to sleep...")
-			}
+			curParticle.Sleep()
 
-			e.asyncMu.Unlock()
+			e.asyncGridAwoken[result.row][result.column] = false
+
 		default:
 		}
 	}
@@ -410,7 +448,7 @@ func (e *Engine) Update(eTick *chan int) {
 
 					for row, columns := range e.grid {
 						for column, particle := range columns {
-							if particle.state != VOID {
+							if particle.state != VOID && particle.state != OBSTACLE {
 								particles = append(particles, fmt.Sprintf("%d,%d", row, column))
 								states = append(states, particle.GetStateS(nil))
 							}
@@ -498,18 +536,18 @@ func (e *Engine) Update(eTick *chan int) {
 								curParticle.nextState = VOID
 							case "CONTRACTED":
 								curParticle.nextState = CONTRACTED
-							case "EXPANDEDL":
-								curParticle.nextState = EXPANDEDL
-							case "EXPANDEDR":
-								curParticle.nextState = EXPANDEDR
-							case "EXPANDEDUL":
-								curParticle.nextState = EXPANDEDUL
-							case "EXPANDEDUR":
-								curParticle.nextState = EXPANDEDUR
-							case "EXPANDEDLL":
-								curParticle.nextState = EXPANDEDLL
-							case "EXPANDEDLR":
-								curParticle.nextState = EXPANDEDLR
+							case "EXPANDL":
+								curParticle.nextState = EXPANDL
+							case "EXPANDR":
+								curParticle.nextState = EXPANDR
+							case "EXPANDUL":
+								curParticle.nextState = EXPANDUL
+							case "EXPANDUR":
+								curParticle.nextState = EXPANDUR
+							case "EXPANDLL":
+								curParticle.nextState = EXPANDLL
+							case "EXPANDLR":
+								curParticle.nextState = EXPANDLR
 							default:
 								panic(fmt.Errorf("'%s' is not a valid state string", nextState))
 							}
@@ -555,7 +593,7 @@ func (e *Engine) Update(eTick *chan int) {
 
 				for row, columns := range e.grid {
 					for column, particle := range columns {
-						if particle.state != VOID {
+						if particle.state != VOID && particle.state != OBSTACLE {
 							particles = append(particles, fmt.Sprintf("%d,%d", row, column))
 							states = append(states, particle.GetStateS(nil))
 						}
@@ -648,7 +686,7 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 		// Update neighbors
 		for row, columns := range e.grid {
 			for column, particle := range columns {
-				if particle.state != VOID {
+				if particle.state != VOID && particle.state != OBSTACLE {
 					neighbors1, neighbors2 := e.getNeighbors(row, column)
 					if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
 						panic(err)
@@ -674,7 +712,7 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 		// Update neighbors' deg
 		for row, columns := range e.grid {
 			for column, particle := range columns {
-				if particle.state != VOID {
+				if particle.state != VOID && particle.state != OBSTACLE {
 					neighbors1Deg := e.getN1Degs(int(row), int(column))
 					if err := particle.SetNeighborsDeg(neighbors1Deg); err != nil {
 						panic(err)
@@ -683,6 +721,9 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 			}
 		}
 	} else {
+		e.asyncMu.RLock()
+		defer e.asyncMu.RUnlock()
+
 		particle := e.grid[iRow][iCol]
 		neighbors1, neighbors2 := e.getNeighbors(iRow, iCol)
 		if err := particle.SetNeighbors(neighbors1, neighbors2); err != nil {
@@ -716,7 +757,7 @@ func (e *Engine) getRound() int {
 
 	for _, columns := range e.grid {
 		for _, particle := range columns {
-			if particle.state != VOID {
+			if particle.state != VOID && particle.state != OBSTACLE {
 				if round := particle.Round(); round < min {
 					min = round
 				}

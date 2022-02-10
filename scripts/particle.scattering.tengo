@@ -2,9 +2,9 @@ fmt := import("fmt")
 
 transition := func(state, N1, N2, N1deg) {
     if state != "CONTRACTED" {
-        if state == "EXPANDEDR" {
+        if state == "EXPANDR" {
             return "MOVER"
-        } else if state == "EXPANDEDL" {
+        } else if state == "EXPANDL" {
             return "MOVEL"
         }
     }
@@ -19,9 +19,9 @@ transition := func(state, N1, N2, N1deg) {
 
     if numN1 > 0 {
         if N1[0] == "VOID" {
-            return "EXPANDEDL"
+            return "EXPANDL"
         } else if N1[1] == "VOID" {
-             return "EXPANDEDR"
+             return "EXPANDR"
         } else {
             return "CONTRACTED"
         }

@@ -112,6 +112,10 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 				op.GeoM.Scale(scaleFactor, scaleFactor)
 				op.GeoM.Translate(float64(cur_w)-center, float64(cur_h)-center)
 				// By default, nearest filter is used.
+				if particle.moveFailed {
+					r.drawCircle(screen, cur_w, cur_h, 16, color.RGBA{242, 0, 0, 10}, true)
+				}
+
 				if particle.iState == AWAKE {
 					screen.DrawImage(r.stateAssets[len(r.stateAssets)-1], op)
 				}
@@ -193,7 +197,7 @@ func (r *Renderer) drawGrid(screen *ebiten.Image) {
 }
 
 func (r *Renderer) InitImages() error {
-	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, ,a]
+	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, o ,a]
 	r.stateAssets = make([]*ebiten.Image, 0)
 
 	img, err := png.Decode(bytes.NewReader(assets.Contracted))
@@ -245,14 +249,21 @@ func (r *Renderer) InitImages() error {
 
 	r.stateAssets = append(r.stateAssets, ebiten.NewImageFromImage(img))
 
-	//        [0  1  2  3   4   5   6   2  1  6   5   4   3]
-	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, ,a]
+	//        [x  1  2  3   4   5   6   2  1  6   5   4   3   x  x]
+	// images [c, l, r, ul, ur, ll, lr, r, l, lr, ll, ur, ul, o ,a]
 	r.stateAssets = append(r.stateAssets, r.stateAssets[2])
 	r.stateAssets = append(r.stateAssets, r.stateAssets[1])
 	r.stateAssets = append(r.stateAssets, r.stateAssets[6])
 	r.stateAssets = append(r.stateAssets, r.stateAssets[5])
 	r.stateAssets = append(r.stateAssets, r.stateAssets[4])
 	r.stateAssets = append(r.stateAssets, r.stateAssets[3])
+
+	img, err = png.Decode(bytes.NewReader(assets.Obstacle))
+	if err != nil {
+		panic(err)
+	}
+
+	r.stateAssets = append(r.stateAssets, ebiten.NewImageFromImage(img))
 
 	img, err = png.Decode(bytes.NewReader(assets.ContractedAwake))
 	if err != nil {

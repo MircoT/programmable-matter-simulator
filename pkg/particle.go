@@ -8,18 +8,19 @@ type InnerState int
 const (
 	VOID State = iota
 	CONTRACTED
-	EXPANDEDL  // LEFT
-	EXPANDEDR  // RIGHT
-	EXPANDEDUL // UPPER LEFT
-	EXPANDEDUR // UPPER RIGHT
-	EXPANDEDLL // LOWER LEFT
-	EXPANDEDLR // LOWER RIGHT
-	MOVEL      // LEFT
-	MOVER      // RIGHT
-	MOVEUL     // UPPER LEFT
-	MOVEUR     // UPPER RIGHT
-	MOVELL     // LOWER LEFT
-	MOVELR     // LOWER RIGHT
+	EXPANDL  // LEFT
+	EXPANDR  // RIGHT
+	EXPANDUL // UPPER LEFT
+	EXPANDUR // UPPER RIGHT
+	EXPANDLL // LOWER LEFT
+	EXPANDLR // LOWER RIGHT
+	MOVEL    // LEFT
+	MOVER    // RIGHT
+	MOVEUL   // UPPER LEFT
+	MOVEUR   // UPPER RIGHT
+	MOVELL   // LOWER LEFT
+	MOVELR   // LOWER RIGHT
+	OBSTACLE
 )
 
 const (
@@ -28,14 +29,15 @@ const (
 )
 
 type Particle struct {
-	state     State
-	nextState State
-	iState    InnerState
-	round     int // the minimum of all contracted particle rounds is the current round
-	deg       int
-	n1        []State
-	n2        []State
-	n1Deg     []int
+	state      State
+	nextState  State
+	iState     InnerState
+	round      int // the minimum of all contracted particle rounds is the current round
+	deg        int
+	n1         []State
+	n2         []State
+	n1Deg      []int
+	moveFailed bool
 }
 
 func (p *Particle) Init() *Particle {
@@ -91,17 +93,17 @@ func (p *Particle) SetStateN(n int) error {
 	case 1:
 		p.state = CONTRACTED
 	case 2:
-		p.state = EXPANDEDL
+		p.state = EXPANDL
 	case 3:
-		p.state = EXPANDEDR
+		p.state = EXPANDR
 	case 4:
-		p.state = EXPANDEDUL
+		p.state = EXPANDUL
 	case 5:
-		p.state = EXPANDEDUR
+		p.state = EXPANDUR
 	case 6:
-		p.state = EXPANDEDLL
+		p.state = EXPANDLL
 	case 7:
-		p.state = EXPANDEDLR
+		p.state = EXPANDLR
 	case 8:
 		p.state = MOVEL
 	case 9:
@@ -114,6 +116,8 @@ func (p *Particle) SetStateN(n int) error {
 		p.state = MOVELL
 	case 13:
 		p.state = MOVELR
+	case 14:
+		p.state = OBSTACLE
 	default:
 		return fmt.Errorf("%d is not a valid state number", n)
 	}
@@ -127,17 +131,17 @@ func (p *Particle) GetStateN() int {
 		return 0
 	case CONTRACTED:
 		return 1
-	case EXPANDEDL:
+	case EXPANDL:
 		return 2
-	case EXPANDEDR:
+	case EXPANDR:
 		return 3
-	case EXPANDEDUL:
+	case EXPANDUL:
 		return 4
-	case EXPANDEDUR:
+	case EXPANDUR:
 		return 5
-	case EXPANDEDLL:
+	case EXPANDLL:
 		return 6
-	case EXPANDEDLR:
+	case EXPANDLR:
 		return 7
 	case MOVEL:
 		return 8
@@ -151,6 +155,8 @@ func (p *Particle) GetStateN() int {
 		return 12
 	case MOVELR:
 		return 13
+	case OBSTACLE:
+		return 14
 	}
 
 	return -1
@@ -176,18 +182,18 @@ func (p *Particle) SetStateS(s string) error {
 		p.state = VOID
 	case "CONTRACTED":
 		p.state = CONTRACTED
-	case "EXPANDEDL":
-		p.state = EXPANDEDL
-	case "EXPANDEDR":
-		p.state = EXPANDEDR
-	case "EXPANDEDUL":
-		p.state = EXPANDEDUL
-	case "EXPANDEDUR":
-		p.state = EXPANDEDUR
-	case "EXPANDEDLL":
-		p.state = EXPANDEDLL
-	case "EXPANDEDLR":
-		p.state = EXPANDEDLR
+	case "EXPANDL":
+		p.state = EXPANDL
+	case "EXPANDR":
+		p.state = EXPANDR
+	case "EXPANDUL":
+		p.state = EXPANDUL
+	case "EXPANDUR":
+		p.state = EXPANDUR
+	case "EXPANDLL":
+		p.state = EXPANDLL
+	case "EXPANDLR":
+		p.state = EXPANDLR
 	case "MOVEL":
 		p.state = MOVEL
 	case "MOVER":
@@ -200,6 +206,8 @@ func (p *Particle) SetStateS(s string) error {
 		p.state = MOVELL
 	case "MOVELR":
 		p.state = MOVELR
+	case "OBSTACLE":
+		p.state = OBSTACLE
 	default:
 		return fmt.Errorf("'%s' is not a valid state number", s)
 	}
@@ -220,18 +228,18 @@ func (p *Particle) GetStateS(state *State) string {
 		return "VOID"
 	case CONTRACTED:
 		return "CONTRACTED"
-	case EXPANDEDL:
-		return "EXPANDEDL"
-	case EXPANDEDR:
-		return "EXPANDEDR"
-	case EXPANDEDUL:
-		return "EXPANDEDUL"
-	case EXPANDEDUR:
-		return "EXPANDEDUR"
-	case EXPANDEDLL:
-		return "EXPANDEDLL"
-	case EXPANDEDLR:
-		return "EXPANDEDLR"
+	case EXPANDL:
+		return "EXPANDL"
+	case EXPANDR:
+		return "EXPANDR"
+	case EXPANDUL:
+		return "EXPANDUL"
+	case EXPANDUR:
+		return "EXPANDUR"
+	case EXPANDLL:
+		return "EXPANDLL"
+	case EXPANDLR:
+		return "EXPANDLR"
 	case MOVEL:
 		return "MOVEL"
 	case MOVER:
@@ -244,6 +252,8 @@ func (p *Particle) GetStateS(state *State) string {
 		return "MOVELL"
 	case MOVELR:
 		return "MOVELR"
+	case OBSTACLE:
+		return "OBSTACLE"
 	}
 
 	return "UNKNOWN"

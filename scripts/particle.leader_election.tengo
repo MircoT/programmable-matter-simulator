@@ -14,17 +14,17 @@ transition := func(state, N1, N2, N1deg) {
     fmt.println(state, " ", numN1, " ", N1)
     if numN1 == 1 || numN1 == 2 {
         if N1[0] == "CONTRACTED" {
-            return "EXPANDEDL"
+            return "EXPANDL"
         } else if N1[1] == "CONTRACTED" {
-            return "EXPANDEDR"
+            return "EXPANDR"
         } else if N1[2] == "CONTRACTED" {
-            return "EXPANDEDUL"
+            return "EXPANDUL"
         } else if N1[3] == "CONTRACTED" {
-            return "EXPANDEDUR"
+            return "EXPANDUR"
         } else if N1[4] == "CONTRACTED" {
-            return "EXPANDEDLL"
+            return "EXPANDLL"
         } else if N1[5] == "CONTRACTED" {
-            return "EXPANDEDLR"
+            return "EXPANDLR"
         }
     } 
     if numN1 == 3 {
@@ -40,17 +40,17 @@ transition := func(state, N1, N2, N1deg) {
             if N1[r] == "CONTRACTED" && N1[q] == "CONTRACTED" && N1[s] == "CONTRACTED" {
                 if N1deg[r] > 2 && N1deg[q] > 3 && N1deg[s] > 2 {
                     if q == 0 {
-                        return "EXPANDEDL"
+                        return "EXPANDL"
                     } else if q == 1 {
-                        return "EXPANDEDR"
+                        return "EXPANDR"
                     } else if q == 2 {
-                        return "EXPANDEDUL"
+                        return "EXPANDUL"
                     } else if q == 3 {
-                        return "EXPANDEDUR"
+                        return "EXPANDUR"
                     } else if q == 4 {
-                        return "EXPANDEDLL"
+                        return "EXPANDLL"
                     } else if q == 5 {
-                        return "EXPANDEDLR"
+                        return "EXPANDLR"
                     }
                 }
             } 
