@@ -356,21 +356,21 @@ func (e *Engine) asyncTask(row, column int) {
 
 	switch nextStateS {
 	case "VOID":
-		curParticle.state = VOID
+		curParticle.nextState = VOID
 	case "CONTRACTED":
-		curParticle.state = CONTRACTED
+		curParticle.nextState = CONTRACTED
 	case "EXPANDL":
-		curParticle.state = EXPANDL
+		curParticle.nextState = EXPANDL
 	case "EXPANDR":
-		curParticle.state = EXPANDR
+		curParticle.nextState = EXPANDR
 	case "EXPANDUL":
-		curParticle.state = EXPANDUL
+		curParticle.nextState = EXPANDUL
 	case "EXPANDUR":
-		curParticle.state = EXPANDUR
+		curParticle.nextState = EXPANDUR
 	case "EXPANDLL":
-		curParticle.state = EXPANDLL
+		curParticle.nextState = EXPANDLL
 	case "EXPANDLR":
-		curParticle.state = EXPANDLR
+		curParticle.nextState = EXPANDLR
 	case "MOVEL":
 		curParticle.nextState = MOVEL
 	case "MOVER":
@@ -396,45 +396,43 @@ func (e *Engine) asyncUpdateController() {
 	for {
 		select {
 		case result := <-e.asyncResults:
-			fmt.Printf("SLEEP [%d,%d]\n", result.row, result.column)
-
 			curParticle := e.grid[result.row][result.column]
 
-			if curParticle.state != VOID && curParticle.state != CONTRACTED && curParticle.state != OBSTACLE {
+			if curParticle.state != VOID && curParticle.state != OBSTACLE {
 				newRow := result.row
 				newCol := result.column
 
 				switch curParticle.nextState {
-				case MOVEL:
+				case EXPANDL, MOVEL:
 					newCol -= 1
 					fmt.Printf("MOVE LEFT -> %d\n", e.grid[newRow][newCol].state)
 
-				case MOVER:
+				case EXPANDR, MOVER:
 					newCol += 1
 					fmt.Printf("MOVE RIGHT -> %d\n", e.grid[newRow][newCol].state)
 
-				case MOVEUL:
+				case EXPANDUL, MOVEUL:
 					newRow -= 1
 					if newRow%2 == 0 {
 						newCol -= 1
 					}
 					fmt.Printf("MOVE UPPER LEFT -> %d\n", e.grid[newRow][newCol].state)
 
-				case MOVEUR:
+				case EXPANDUR, MOVEUR:
 					newRow -= 1
 					if newRow%2 != 0 {
 						newCol += 1
 					}
 					fmt.Printf("MOVE UPPER RIGHT -> %d\n", e.grid[newRow][newCol].state)
 
-				case MOVELL:
+				case EXPANDLL, MOVELL:
 					newRow += 1
 					if newRow%2 == 0 {
 						newCol -= 1
 					}
 					fmt.Printf("MOVE LOWER LEFT -> %d\n", e.grid[newRow][newCol].state)
 
-				case MOVELR:
+				case EXPANDLR, MOVELR:
 					newRow += 1
 					if newRow%2 != 0 {
 						newCol += 1
@@ -452,9 +450,26 @@ func (e *Engine) asyncUpdateController() {
 					}
 
 					curParticle.nextState = VOID
+				case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
+					if curParticle.nextState != curParticle.state {
+						if e.grid[newRow][newCol].state != VOID && e.grid[newRow][newCol].state != CONTRACTED {
+							curParticle.moveFailed = true
+							curParticle.state = CONTRACTED
+							curParticle.nextState = VOID
+						} else {
+							curParticle.state = curParticle.nextState
+							curParticle.nextState = VOID
+						}
+					} else {
+						curParticle.nextState = VOID
+					}
+				default:
+					curParticle.state = curParticle.nextState
+					curParticle.nextState = VOID
 				}
 			}
 
+			fmt.Printf("SLEEP [%d,%d]\n", result.row, result.column)
 			curParticle.Sleep()
 
 			e.asyncGridAwoken[result.row][result.column] = false
@@ -480,6 +495,7 @@ func (e *Engine) syncUpdate() {
 		}
 
 		fmt.Println("SYNC SCHEDULER")
+
 		res, err := e.Scheduler(particles, states)
 		if err != nil {
 			panic(err)
@@ -855,6 +871,11 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 		}
 
 		if err := particle.SetDeg(deg); err != nil {
+			panic(err)
+		}
+
+		neighbors1Deg := e.getN1Degs(int(iRow), int(iCol))
+		if err := particle.SetNeighborsDeg(neighbors1Deg); err != nil {
 			panic(err)
 		}
 	}
