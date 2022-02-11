@@ -21,9 +21,12 @@ transition := func(state, N1, N2, N1deg) {
 
     // Check obstacle neighbors
     numObstacles := 0
+    numParticles := 0
     for n in N1 {
         if n == "OBSTACLE" {
             numObstacles += 1
+        } else if n != "VOID" {
+            numParticles += 1
         }
     }
 
@@ -62,6 +65,10 @@ transition := func(state, N1, N2, N1deg) {
             }
             return "EXPANDR"
         }
+    }
+
+    if numParticles == 0 {
+        return state
     }
 
     // Get max interval
