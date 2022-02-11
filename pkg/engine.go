@@ -69,7 +69,6 @@ func (e *Engine) Init(numRows, numCols int) error {
 	e.grid = make([][]*Particle, numRows)
 	e.asyncGridAwoken = make([][]bool, numRows)
 	e.edges = make(map[int]map[int]bool)
-	e.asyncResults = make(chan asyncResult, numRows*numCols)
 	e.asyncInitPhase = 1000    // max time to wait = 1000 milliseconds
 	e.asyncLookPhase = 1000    // max time to wait = 1000 milliseconds
 	e.asyncComputePhase = 1000 // max time to wait = 1000 milliseconds
@@ -89,6 +88,7 @@ func (e *Engine) Init(numRows, numCols int) error {
 	}
 
 	if !e.asyncLoopRunning {
+		e.asyncResults = make(chan asyncResult, numRows*numCols)
 		go e.asyncUpdateController()
 		e.asyncLoopRunning = true
 	}
@@ -393,90 +393,87 @@ func (e *Engine) asyncTask(row, column int) {
 }
 
 func (e *Engine) asyncUpdateController() {
-	for {
-		select {
-		case result := <-e.asyncResults:
-			curParticle := e.grid[result.row][result.column]
+	for result := range e.asyncResults {
+		fmt.Println("----- GET RESULT -----")
+		curParticle := e.grid[result.row][result.column]
 
-			if curParticle.state != VOID && curParticle.state != OBSTACLE {
-				newRow := result.row
-				newCol := result.column
+		if curParticle.state != VOID && curParticle.state != OBSTACLE {
+			newRow := result.row
+			newCol := result.column
 
-				switch curParticle.nextState {
-				case EXPANDL, MOVEL:
+			switch curParticle.nextState {
+			case EXPANDL, MOVEL:
+				newCol -= 1
+				fmt.Printf("MOVE LEFT -> %d\n", e.grid[newRow][newCol].state)
+
+			case EXPANDR, MOVER:
+				newCol += 1
+				fmt.Printf("MOVE RIGHT -> %d\n", e.grid[newRow][newCol].state)
+
+			case EXPANDUL, MOVEUL:
+				newRow -= 1
+				if newRow%2 == 0 {
 					newCol -= 1
-					fmt.Printf("MOVE LEFT -> %d\n", e.grid[newRow][newCol].state)
+				}
+				fmt.Printf("MOVE UPPER LEFT -> %d\n", e.grid[newRow][newCol].state)
 
-				case EXPANDR, MOVER:
+			case EXPANDUR, MOVEUR:
+				newRow -= 1
+				if newRow%2 != 0 {
 					newCol += 1
-					fmt.Printf("MOVE RIGHT -> %d\n", e.grid[newRow][newCol].state)
-
-				case EXPANDUL, MOVEUL:
-					newRow -= 1
-					if newRow%2 == 0 {
-						newCol -= 1
-					}
-					fmt.Printf("MOVE UPPER LEFT -> %d\n", e.grid[newRow][newCol].state)
-
-				case EXPANDUR, MOVEUR:
-					newRow -= 1
-					if newRow%2 != 0 {
-						newCol += 1
-					}
-					fmt.Printf("MOVE UPPER RIGHT -> %d\n", e.grid[newRow][newCol].state)
-
-				case EXPANDLL, MOVELL:
-					newRow += 1
-					if newRow%2 == 0 {
-						newCol -= 1
-					}
-					fmt.Printf("MOVE LOWER LEFT -> %d\n", e.grid[newRow][newCol].state)
-
-				case EXPANDLR, MOVELR:
-					newRow += 1
-					if newRow%2 != 0 {
-						newCol += 1
-					}
-					fmt.Printf("MOVE LOWER RIGHT -> %d\n", e.grid[newRow][newCol].state)
 				}
+				fmt.Printf("MOVE UPPER RIGHT -> %d\n", e.grid[newRow][newCol].state)
 
-				switch curParticle.nextState {
-				case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
-					if e.grid[newRow][newCol].state == VOID {
-						e.grid[newRow][newCol], e.grid[result.row][result.column] = e.grid[result.row][result.column], e.grid[newRow][newCol]
-						curParticle.state = CONTRACTED
-					} else {
-						curParticle.moveFailed = true
-					}
-
-					curParticle.nextState = VOID
-				case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
-					if curParticle.nextState != curParticle.state {
-						if e.grid[newRow][newCol].state != VOID && e.grid[newRow][newCol].state != CONTRACTED {
-							curParticle.moveFailed = true
-							curParticle.state = CONTRACTED
-							curParticle.nextState = VOID
-						} else {
-							curParticle.state = curParticle.nextState
-							curParticle.nextState = VOID
-						}
-					} else {
-						curParticle.nextState = VOID
-					}
-				default:
-					curParticle.state = curParticle.nextState
-					curParticle.nextState = VOID
+			case EXPANDLL, MOVELL:
+				newRow += 1
+				if newRow%2 == 0 {
+					newCol -= 1
 				}
+				fmt.Printf("MOVE LOWER LEFT -> %d\n", e.grid[newRow][newCol].state)
+
+			case EXPANDLR, MOVELR:
+				newRow += 1
+				if newRow%2 != 0 {
+					newCol += 1
+				}
+				fmt.Printf("MOVE LOWER RIGHT -> %d\n", e.grid[newRow][newCol].state)
 			}
 
-			fmt.Printf("SLEEP [%d,%d]\n", result.row, result.column)
-			curParticle.Sleep()
+			switch curParticle.nextState {
+			case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
+				if e.grid[newRow][newCol].state == VOID {
+					e.grid[newRow][newCol], e.grid[result.row][result.column] = e.grid[result.row][result.column], e.grid[newRow][newCol]
+					curParticle.state = CONTRACTED
+				} else {
+					curParticle.moveFailed = true
+				}
 
-			e.asyncGridAwoken[result.row][result.column] = false
-
-		default:
+				curParticle.nextState = VOID
+			case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
+				if curParticle.nextState != curParticle.state {
+					if e.grid[newRow][newCol].state != VOID && e.grid[newRow][newCol].state != CONTRACTED {
+						curParticle.moveFailed = true
+						curParticle.state = CONTRACTED
+						curParticle.nextState = VOID
+					} else {
+						curParticle.state = curParticle.nextState
+						curParticle.nextState = VOID
+					}
+				} else {
+					curParticle.nextState = VOID
+				}
+			default:
+				curParticle.state = curParticle.nextState
+				curParticle.nextState = VOID
+			}
 		}
+
+		fmt.Printf("SLEEP [%d,%d]\n", result.row, result.column)
+		curParticle.Sleep()
+
+		e.asyncGridAwoken[result.row][result.column] = false
 	}
+	fmt.Println("----- EXITED -----")
 }
 
 func (e *Engine) syncUpdate() {
