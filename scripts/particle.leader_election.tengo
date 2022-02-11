@@ -1,4 +1,5 @@
 fmt := import("fmt")
+rand := import("rand")
 
 transition := func(state, N1, N2, N1deg) {
     if state != "CONTRACTED" {
@@ -12,7 +13,7 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
     fmt.println(state, " ", numN1, " ", N1)
-    if numN1 == 1 || numN1 == 2 {
+    if numN1 == 1 {
         if N1[0] == "CONTRACTED" {
             return "EXPANDL"
         } else if N1[1] == "CONTRACTED" {
@@ -26,6 +27,59 @@ transition := func(state, N1, N2, N1deg) {
         } else if N1[5] == "CONTRACTED" {
             return "EXPANDLR"
         }
+    }
+    if numN1 == 2 {
+        first := rand.float() > 1.0
+        a1 := ""
+        a2 := ""
+        if N1[0] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDL"
+            } else if a2 == "" {
+                a2 = "EXPANDL"
+            }
+        } 
+        if N1[1] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDR"
+            } else if a2 == "" {
+                a2 = "EXPANDR"
+            }
+        } 
+        if N1[2] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDUL"
+            } else if a2 == "" {
+                a2 = "EXPANDUL"
+            }
+        } 
+        if N1[3] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDUR"
+            } else if a2 == "" {
+                a2 = "EXPANDUR"
+            }
+        } 
+        if N1[4] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDLL"
+            } else if a2 == "" {
+                a2 = "EXPANDLL"
+            }
+        } 
+        if N1[5] == "CONTRACTED" {
+            if a1 == "" {
+                a1 = "EXPANDLR"
+            } else if a2 == "" {
+                a2 = "EXPANDLR"
+            }
+        }
+
+        if first {
+            return a1
+        }
+
+        return a2
     } 
     if numN1 == 3 {
         // [l, r, ul, ur, ll, lr]
