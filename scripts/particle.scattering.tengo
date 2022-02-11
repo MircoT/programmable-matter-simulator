@@ -65,6 +65,20 @@ transition := func(state, N1, N2, N1deg) {
             }
             return "EXPANDL"
         }
+    } else if numObstacles >= 1 && numParticles >= 1 {
+        if N1[0] == "VOID" {
+            return "EXPANDL"
+        } else if N1[1] == "VOID" {
+            return "EXPANDR"
+        } else if N1[2] == "VOID" {
+            return "EXPANDUL"
+        } else if N1[3] == "VOID" {
+            return "EXPANDUR"
+        } else if N1[4] == "VOID" {
+            return "EXPANDLL"
+        } else if N1[5] == "VOID" {
+            return "EXPANDLR"
+        }
     }
 
     if numParticles == 0 {
