@@ -16,6 +16,7 @@ transition := func(state, N1, N2, N1deg) {
             numN1 += 1
         }
     }
+
     fmt.println(state, " ", numN1, " ", N1, " ", N1[0] == "VOID", " ", N1[1] == "VOID")
 
     if numN1 > 0 {
