@@ -30,7 +30,7 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
 
-    if numObstacles == 1 {
+    if numObstacles == 1 && numParticles == 0{
         // [0, 1, 2,  3,  4,  5]
         // [l, r, ul, ur, ll, lr]
         right := rand.float() > 0.5
@@ -46,24 +46,24 @@ transition := func(state, N1, N2, N1deg) {
             return "EXPANDLL"
         } else if N1[2] == "OBSTACLE" {
            if right {
-                return "EXPANDUR"
+                return "EXPANDLL"
             }
-            return "EXPANDL"
+            return "EXPANDR"
         } else if N1[3] == "OBSTACLE" {
-           if right {
-                return "EXPANDR"
-            }
-            return "EXPANDUL"
-        } else if N1[4] == "OBSTACLE" {
            if right {
                 return "EXPANDL"
             }
             return "EXPANDLR"
+        } else if N1[4] == "OBSTACLE" {
+           if right {
+                return "EXPANDR"
+            }
+            return "EXPANDUL"
         } else if N1[5] == "OBSTACLE" {
            if right {
-                return "EXPANDLR"
+                return "EXPANDUR"
             }
-            return "EXPANDR"
+            return "EXPANDL"
         }
     }
 
