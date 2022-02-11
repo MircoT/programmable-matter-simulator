@@ -62,7 +62,6 @@ transition := func(state, N1, N2, N1deg) {
             }
             return "EXPANDR"
         }
-
     }
 
     // Get max interval
