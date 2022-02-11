@@ -19,6 +19,52 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
 
+    // Check obstacle neighbors
+    numObstacles := 0
+    for n in N1 {
+        if n == "OBSTACLE" {
+            numObstacles += 1
+        }
+    }
+
+    if numObstacles == 1 {
+        // [0, 1, 2,  3,  4,  5]
+        // [l, r, ul, ur, ll, lr]
+        right := rand.float() > 0.5
+        if N1[0] == "OBSTACLE" {
+            if right {
+                return "EXPANDLR"
+            }
+            return "EXPANDUR"
+        } else if N1[1] == "OBSTACLE" {
+           if right {
+                return "EXPANDUL"
+            }
+            return "EXPANDLL"
+        } else if N1[2] == "OBSTACLE" {
+           if right {
+                return "EXPANDUR"
+            }
+            return "EXPANDL"
+        } else if N1[3] == "OBSTACLE" {
+           if right {
+                return "EXPANDR"
+            }
+            return "EXPANDUL"
+        } else if N1[4] == "OBSTACLE" {
+           if right {
+                return "EXPANDL"
+            }
+            return "EXPANDLR"
+        } else if N1[5] == "OBSTACLE" {
+           if right {
+                return "EXPANDLR"
+            }
+            return "EXPANDR"
+        }
+
+    }
+
     // Get max interval
     // [0, 1, 2,  3,  4,  5]
     // [l, r, ul, ur, ll, lr]
