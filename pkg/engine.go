@@ -446,11 +446,11 @@ func (e *Engine) asyncUpdateController() {
 				case MOVEL, MOVER, MOVEUL, MOVEUR, MOVELL, MOVELR:
 					if e.grid[newRow][newCol].state == VOID {
 						e.grid[newRow][newCol], e.grid[result.row][result.column] = e.grid[result.row][result.column], e.grid[newRow][newCol]
+						curParticle.state = CONTRACTED
 					} else {
 						curParticle.moveFailed = true
 					}
 
-					curParticle.state = CONTRACTED
 					curParticle.nextState = VOID
 				}
 			}
@@ -651,11 +651,11 @@ func (e *Engine) syncUpdate() {
 					fmt.Printf("MOVE: %d to -> %d\n", curParticle.nextState, e.grid[newRow][newCol].state)
 					if e.grid[newRow][newCol].state == VOID {
 						e.grid[newRow][newCol], e.grid[row][column] = e.grid[row][column], e.grid[newRow][newCol]
+						curParticle.state = CONTRACTED
 					} else {
 						curParticle.moveFailed = true
 					}
 
-					curParticle.state = CONTRACTED
 					curParticle.nextState = VOID
 				case EXPANDL, EXPANDR, EXPANDUL, EXPANDUR, EXPANDLL, EXPANDLR:
 					if curParticle.nextState != curParticle.state {
