@@ -29,7 +29,7 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
     if numN1 == 2 {
-        first := rand.float() > 1.0
+        first := rand.float() > 0.5
         a1 := ""
         a2 := ""
         if N1[0] == "CONTRACTED" {
