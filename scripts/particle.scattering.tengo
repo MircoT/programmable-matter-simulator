@@ -65,21 +65,22 @@ transition := func(state, N1, N2, N1deg) {
             }
             return "EXPANDL"
         }
-    } else if numObstacles >= 1 && numParticles >= 1 {
-        if N1[0] == "VOID" {
-            return "EXPANDL"
-        } else if N1[1] == "VOID" {
-            return "EXPANDR"
-        } else if N1[2] == "VOID" {
-            return "EXPANDUL"
-        } else if N1[3] == "VOID" {
-            return "EXPANDUR"
-        } else if N1[4] == "VOID" {
-            return "EXPANDLL"
-        } else if N1[5] == "VOID" {
-            return "EXPANDLR"
-        }
-    }
+    } 
+    // else if numObstacles == 1 && numParticles == 1 {
+    //     if N1[0] == "VOID" {
+    //         return "EXPANDL"
+    //     } else if N1[1] == "VOID" {
+    //         return "EXPANDR"
+    //     } else if N1[2] == "VOID" {
+    //         return "EXPANDUL"
+    //     } else if N1[3] == "VOID" {
+    //         return "EXPANDUR"
+    //     } else if N1[4] == "VOID" {
+    //         return "EXPANDLL"
+    //     } else if N1[5] == "VOID" {
+    //         return "EXPANDLR"
+    //     }
+    // }
 
     if numParticles == 0 {
         return state
@@ -99,7 +100,7 @@ transition := func(state, N1, N2, N1deg) {
             pos := sequence[(i+j) % len(sequence)]
             fmt.println(i, " ", j, " ", cur_i, " ", pos)
             n := N1[pos]
-            if n == "VOID" {
+            if n == "VOID" || (numParticles == 1 && n == "OBSTACLE") {
                 cur_i += 1
             } else {
                 break
@@ -125,6 +126,10 @@ transition := func(state, N1, N2, N1deg) {
             direction = sequence[(start_pos+2) % len(sequence)]
         }
     } else {
+        return state
+    }
+
+    if N1[direction] != "VOID" {
         return state
     }
 
