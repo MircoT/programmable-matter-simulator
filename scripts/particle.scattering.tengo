@@ -129,6 +129,18 @@ transition := func(state, N1, N2, N1deg) {
         return state
     }
 
+    // Corrections
+    if numParticles == 1  {
+        if max_i == 5 {
+            if N1[direction] == "OBSTACLE" {
+                direction = sequence[(start_pos+1) % len(sequence)]
+                if N1[direction] == "OBSTACLE" {
+                    direction = sequence[(start_pos+3) % len(sequence)]
+                }
+            }
+        }
+    }
+
     if N1[direction] != "VOID" {
         return state
     }
