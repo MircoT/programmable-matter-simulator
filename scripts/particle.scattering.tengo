@@ -30,42 +30,42 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
 
-    if numObstacles == 1 && numParticles == 0{
-        // [0, 1, 2,  3,  4,  5]
-        // [l, r, ul, ur, ll, lr]
-        right := rand.float() > 0.5
-        if N1[0] == "OBSTACLE" {
-            if right {
-                return "EXPANDLR"
-            }
-            return "EXPANDUR"
-        } else if N1[1] == "OBSTACLE" {
-           if right {
-                return "EXPANDUL"
-            }
-            return "EXPANDLL"
-        } else if N1[2] == "OBSTACLE" {
-           if right {
-                return "EXPANDLL"
-            }
-            return "EXPANDR"
-        } else if N1[3] == "OBSTACLE" {
-           if right {
-                return "EXPANDL"
-            }
-            return "EXPANDLR"
-        } else if N1[4] == "OBSTACLE" {
-           if right {
-                return "EXPANDR"
-            }
-            return "EXPANDUL"
-        } else if N1[5] == "OBSTACLE" {
-           if right {
-                return "EXPANDUR"
-            }
-            return "EXPANDL"
-        }
-    } 
+    // if numObstacles == 1 && numParticles == 0 {
+    //     // [0, 1, 2,  3,  4,  5]
+    //     // [l, r, ul, ur, ll, lr]
+    //     right := rand.float() > 0.5
+    //     if N1[0] == "OBSTACLE" {
+    //         if right {
+    //             return "EXPANDLR"
+    //         }
+    //         return "EXPANDUR"
+    //     } else if N1[1] == "OBSTACLE" {
+    //        if right {
+    //             return "EXPANDUL"
+    //         }
+    //         return "EXPANDLL"
+    //     } else if N1[2] == "OBSTACLE" {
+    //        if right {
+    //             return "EXPANDLL"
+    //         }
+    //         return "EXPANDR"
+    //     } else if N1[3] == "OBSTACLE" {
+    //        if right {
+    //             return "EXPANDL"
+    //         }
+    //         return "EXPANDLR"
+    //     } else if N1[4] == "OBSTACLE" {
+    //        if right {
+    //             return "EXPANDR"
+    //         }
+    //         return "EXPANDUL"
+    //     } else if N1[5] == "OBSTACLE" {
+    //        if right {
+    //             return "EXPANDUR"
+    //         }
+    //         return "EXPANDL"
+    //     }
+    // } 
     // else if numObstacles == 1 && numParticles == 1 {
     //     if N1[0] == "VOID" {
     //         return "EXPANDL"
@@ -100,7 +100,7 @@ transition := func(state, N1, N2, N1deg) {
             pos := sequence[(i+j) % len(sequence)]
             fmt.println(i, " ", j, " ", cur_i, " ", pos)
             n := N1[pos]
-            if n == "VOID" || (numParticles == 1 && n == "OBSTACLE") {
+            if n == "VOID" || n == "OBSTACLE" {
                 cur_i += 1
             } else {
                 break
@@ -115,35 +115,62 @@ transition := func(state, N1, N2, N1deg) {
     fmt.println(state, " ", N1, " ", max_i, " ", start_pos)
 
     direction := -1
+    next_start := -1
     if max_i == 3 {
-        direction = sequence[(start_pos+1) % len(sequence)]
+        next_start = ((start_pos+1)+len(sequence)) % len(sequence)
+        direction = sequence[next_start]
     } else if max_i == 5 {
-        direction = sequence[(start_pos+2) % len(sequence)]
+        next_start = ((start_pos+2) + len(sequence)) % len(sequence)
+        direction = sequence[next_start]
     } else if max_i == 4 {
         if rand.float() > 0.5 {
-            direction = sequence[(start_pos+1) % len(sequence)]
+            next_start = ((start_pos + 1)+len(sequence)) % len(sequence)
         } else {
-            direction = sequence[(start_pos+2) % len(sequence)]
+            next_start = ((start_pos + 2)+len(sequence)) % len(sequence)
         }
+        direction = sequence[next_start]
     } else {
         return state
     }
 
     // Corrections
-    if numParticles == 1  {
-        if max_i == 5 {
-            if N1[direction] == "OBSTACLE" {
-                direction = sequence[(start_pos+1) % len(sequence)]
-                if N1[direction] == "OBSTACLE" {
-                    direction = sequence[(start_pos+3) % len(sequence)]
-                }
-            }
+    next_i := 1
+    next_first := true
+    next_right := rand.float() > 0.5
+    fmt.println("CORRECTION -> ", direction, " | ", N1[direction])
+    for N1[direction] == "OBSTACLE" {
+        if next_right {
+            direction = ((next_start + next_i)+len(sequence)) % len(sequence)
+        } else {
+            direction = ((next_start - next_i)+len(sequence)) % len(sequence)
+        }   
+
+        fmt.println("CORRECTION -> ", direction)
+        direction = sequence[direction]
+        fmt.println("CORRECTION -> ", direction, " | ", N1[direction])
+        
+        if !next_first {
+            next_i += 1
+        }
+
+        next_right = !next_right
+        next_first = !next_first
+
+        if next_i > 3 {
+            break
         }
     }
-
-    if N1[direction] != "VOID" {
-        return state
-    }
+    fmt.println("END CORRECTION -> ", direction, " | ", N1[direction])
+    // if numParticles == 1  {
+    //     if max_i == 5 {
+    //         if N1[direction] == "OBSTACLE" {
+    //             direction = sequence[(start_pos+1) % len(sequence)]
+    //             if N1[direction] == "OBSTACLE" {
+    //                 direction = sequence[(start_pos+3) % len(sequence)]
+    //             }
+    //         }
+    //     }
+    // }
 
     // [0, 1, 2,  3,  4,  5]
     // [l, r, ul, ur, ll, lr]
