@@ -104,7 +104,12 @@ func (e *Engine) SetAsyncSheduler() {
 	e.schedulerType = ASYNC
 }
 
-func (e *Engine) InitGrid(initialState map[string]interface{}) error {
+func (e *Engine) Bootstrap(initialState map[string]interface{}, ppWakeup int, ppLook int, ppCompute int, ppMove int) error {
+	e.asyncInitPhase = ppWakeup
+	e.asyncLookPhase = ppLook
+	e.asyncMovePhase = ppCompute
+	e.asyncComputePhase = ppMove
+
 	for key, val := range initialState {
 		parts := strings.Split(key, ",")
 
@@ -205,15 +210,19 @@ func (e *Engine) LoadScripts() error {
 	return nil
 }
 
-func (e *Engine) InitialState() (int, map[string]interface{}, error) {
+func (e *Engine) InitialState() (int, map[string]interface{}, int, int, int, int, error) {
 	if err := e.initScript.Run(); err != nil {
-		return -1, nil, err
+		return -1, nil, -1, -1, -1, -1, err
 	}
 
 	initState := e.initScript.Get("init_state")
 	hex_size := e.initScript.Get("hex_size")
+	pp_wakeup := e.initScript.Get("particle_phase_wakeup")
+	pp_look := e.initScript.Get("particle_phase_look")
+	pp_compute := e.initScript.Get("particle_phase_compute")
+	pp_move := e.initScript.Get("particle_phase_move")
 
-	return hex_size.Int(), initState.Map(), nil
+	return hex_size.Int(), initState.Map(), pp_wakeup.Int(), pp_look.Int(), pp_compute.Int(), pp_move.Int(), nil
 }
 
 func (e *Engine) Scheduler(particles []interface{}, states []interface{}) ([]interface{}, error) {

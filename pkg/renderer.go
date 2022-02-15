@@ -322,7 +322,7 @@ func (r *Renderer) Init() error {
 		panic(err)
 	}
 
-	hexSize, initialState, err := r.engine.InitialState()
+	hexSize, initialState, ppWakeup, ppLook, ppCompute, ppMove, err := r.engine.InitialState()
 	if err != nil {
 		panic(err)
 	}
@@ -343,7 +343,7 @@ func (r *Renderer) Init() error {
 		panic(err)
 	}
 
-	if err := r.engine.InitGrid(initialState); err != nil {
+	if err := r.engine.Bootstrap(initialState, ppWakeup, ppLook, ppCompute, ppMove); err != nil {
 		panic(err)
 	}
 
