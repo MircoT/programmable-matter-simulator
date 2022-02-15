@@ -1,0 +1,87 @@
+fmt := import("fmt")
+rand := import("rand")
+
+
+transition := func(state, N1, N2, N1deg) {
+    if state != "CONTRACTED" {
+        if state == "EXPANDR" {
+            return "MOVER"
+        } else if state == "EXPANDL" {
+            return "MOVEL"
+        } else if state == "EXPANDUL" {
+            return "MOVEUL"
+        } else if state == "EXPANDUR" {
+            return "MOVEUR"
+        } else if state == "EXPANDLL" {
+            return "MOVELL"
+        } else if state == "EXPANDLR" {
+            return "MOVELR"
+        }
+    }
+
+    // Get max interval
+    // [0, 1, 2,  3,  4,  5]
+    // [l, r, ul, ur, ll, lr]
+    sequence := [0, 2, 3, 1, 5, 4]
+
+    max_i := -1
+    start_pos := -1
+
+    for i:=0; i<len(sequence); i++ {
+        cur_i := 0
+        for j:=0; j<len(sequence); j++ {
+            pos := sequence[(i+j) % len(sequence)]
+            fmt.println(i, " ", j, " ", cur_i, " ", pos)
+            n := N1[pos]
+            if n == "VOID" {
+                cur_i += 1
+            } else {
+                break
+            }
+        }
+        if cur_i > max_i{
+            max_i = cur_i
+            start_pos = i
+        }
+    }
+    
+    fmt.println(state, " ", N1, " ", max_i, " ", start_pos)
+
+    direction := -1
+    if max_i == 3 {
+        direction = sequence[(start_pos+1) % len(sequence)]
+    } else if max_i == 5 {
+        direction = sequence[(start_pos+2) % len(sequence)]
+    } else if max_i == 4 {
+        if rand.float() > 0.5 {
+            direction = sequence[(start_pos+1) % len(sequence)]
+        } else {
+            direction = sequence[(start_pos+2) % len(sequence)]
+        }
+    } else {
+        return state
+    }
+
+    // [0, 1, 2,  3,  4,  5]
+    // [l, r, ul, ur, ll, lr]
+    if direction == 0 {
+        return "EXPANDL"
+    } else if direction == 1 {
+        return "EXPANDR"
+    } else if direction == 2 {
+        return "EXPANDUL"
+    } else if direction == 3 {
+        return "EXPANDUR"
+    } else if direction == 4 {
+        return "EXPANDLL"
+    } else if direction == 5 {
+        return "EXPANDLR"
+    }
+
+    return state
+}
+next_state := transition(state, 
+        [l, r, ul, ur, ll, lr], 
+        [l2, r2, u2l, u2r, l2l, l2r], 
+        [dl, dr, dul, dur, dll, dlr]
+    )
