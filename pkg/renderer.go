@@ -120,7 +120,11 @@ func (r *Renderer) drawParticles(screen *ebiten.Image) {
 					screen.DrawImage(r.stateAssets[len(r.stateAssets)-1], op)
 				}
 
-				screen.DrawImage(r.stateAssets[particle.GetStateN()-1], op)
+				if particle.state == CONTRACTED && particle.round > 0 && particle.deg == 0 {
+					screen.DrawImage(r.stateAssets[len(r.stateAssets)-2], op)
+				} else {
+					screen.DrawImage(r.stateAssets[particle.GetStateN()-1], op)
+				}
 			}
 		}
 	}
@@ -259,6 +263,13 @@ func (r *Renderer) InitImages() error {
 	r.stateAssets = append(r.stateAssets, r.stateAssets[3])
 
 	img, err = png.Decode(bytes.NewReader(assets.Obstacle))
+	if err != nil {
+		panic(err)
+	}
+
+	r.stateAssets = append(r.stateAssets, ebiten.NewImageFromImage(img))
+
+	img, err = png.Decode(bytes.NewReader(assets.ContractedIsolated))
 	if err != nil {
 		panic(err)
 	}

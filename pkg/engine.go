@@ -836,7 +836,7 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 					}
 
 					for _, neighbor := range neighbors1 {
-						if neighbor == CONTRACTED {
+						if neighbor != VOID && neighbor != OBSTACLE {
 							deg += 1
 						}
 					}
@@ -871,7 +871,7 @@ func (e *Engine) updateNeighbors(iRow, iCol int) {
 		}
 
 		for _, neighbor := range neighbors1 {
-			if neighbor == CONTRACTED {
+			if neighbor != VOID && neighbor != OBSTACLE {
 				deg += 1
 			}
 		}

@@ -7,11 +7,14 @@ import (
 //go:embed contracted.png
 var Contracted []byte
 
-//go:embed obstacle.png
-var Obstacle []byte
-
 //go:embed contractedAwake.png
 var ContractedAwake []byte
+
+//go:embed contractedIsolated.png
+var ContractedIsolated []byte
+
+//go:embed obstacle.png
+var Obstacle []byte
 
 //go:embed expandedL.png
 var ExpandedL []byte
