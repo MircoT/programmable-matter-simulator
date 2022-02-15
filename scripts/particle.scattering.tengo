@@ -116,12 +116,53 @@ transition := func(state, N1, N2, N1deg) {
 
     direction := -1
     next_start := -1
-    if max_i == 3 {
+    if  max_i == 1 {
+        next_start = ((start_pos)+len(sequence)) % len(sequence)
+        direction = sequence[next_start]
+    } else
+    if max_i == 2 {
+        if rand.float() > 0.5 {
+            next_start = ((start_pos )+len(sequence)) % len(sequence)
+        } else {
+           next_start = ((start_pos + 1)+len(sequence)) % len(sequence)
+        }
+        direction = sequence[next_start]
+    } else if max_i == 3 {
         next_start = ((start_pos+1)+len(sequence)) % len(sequence)
         direction = sequence[next_start]
-    } else if max_i == 5 {
-        next_start = ((start_pos+2) + len(sequence)) % len(sequence)
+    } else if max_i == 5 && numObstacles < 5 {       // MODIFIED
+    //    next_start = ((start_pos+1) + len(sequence)) % len(sequence)  // MODIFIED era start_pos+2
+        if rand.float() > 0.5 {
+            next_start = ((start_pos + 1)+len(sequence)) % len(sequence)
+        } else {
+           next_start = ((start_pos + 3)+len(sequence)) % len(sequence)
+        }
         direction = sequence[next_start]
+    // } 
+    // if max_i == 3 {
+    //     chance := rand.float()
+    //     if chance < 0.5 {
+    //         next_start = ((start_pos+1)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    //     } else if chance >= 0.5 && chance < 0.75 {
+    //         next_start = ((start_pos)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    //     } else if chance >= 0.75 {
+    //         next_start = ((start_pos+2)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    // }
+    // } else if max_i == 5 {
+    //     chance := rand.float()
+    //     if chance < 0.5 {
+    //         next_start = ((start_pos+2)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    //     } else if chance >= 0.5 && chance < 0.75 {
+    //         next_start = ((start_pos+1)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    //     } else if chance >= 0.75 {
+    //         next_start = ((start_pos+3)+len(sequence)) % len(sequence)
+    //         direction = sequence[next_start]
+    //     }
     } else if max_i == 4 {
         if rand.float() > 0.5 {
             next_start = ((start_pos + 1)+len(sequence)) % len(sequence)
@@ -138,7 +179,7 @@ transition := func(state, N1, N2, N1deg) {
     next_first := true
     next_right := rand.float() > 0.5
     fmt.println("CORRECTION -> ", direction, " | ", N1[direction])
-    for N1[direction] == "OBSTACLE" {
+    for N1[direction] != "VOID" { // == "OBSTACLE" {         // MODIFIED
         if next_right {
             direction = ((next_start + next_i)+len(sequence)) % len(sequence)
         } else {
@@ -190,8 +231,9 @@ transition := func(state, N1, N2, N1deg) {
 
     return state
 }
+
 next_state := transition(state, 
-        [l, r, ul, ur, ll, lr], 
-        [l2, r2, u2l, u2r, l2l, l2r], 
-        [dl, dr, dul, dur, dll, dlr]
-    )
+    [l, r, ul, ur, ll, lr], 
+    [l2, r2, u2l, u2r, l2l, l2r], 
+    [dl, dr, dul, dur, dll, dlr]
+)
