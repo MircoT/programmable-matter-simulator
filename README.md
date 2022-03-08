@@ -28,3 +28,7 @@ If you press `H` you will see the following help menu:
 As you can see, you can select different script for the particles and start, pause
 or restart the simulation. Of course, if you edit the scripts, you have to reload
 the environment pressing `R`.
+
+## :warning: Known bugs :warning:
+
+- A particle that reach the border will crash the engine (not supported at the moment, maybe a toroidal map could help)
