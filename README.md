@@ -17,6 +17,8 @@ go run main.go
 
 Edit the scripts in `scripts` folder to modify the behavior of the simulation.
 
+### :question: Help
+
 If you press `H` you will see the following help menu:
 
 <p align="center">
