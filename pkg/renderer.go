@@ -151,6 +151,8 @@ func (r *Renderer) drawStatusBar(screen *ebiten.Image) {
 
 	if r.statusBarMsg != "" {
 		text.Draw(screen, r.statusBarMsg, mplusStatusBarFont, 6, ScreenHeight-6, color.White)
+	} else {
+		text.Draw(screen, fmt.Sprintf("Round: %d", r.round), mplusStatusBarFont, 6, ScreenHeight-6, color.White)
 	}
 
 	if len(r.statusBarMsgs) > 0 && r.statusBarMsg == "" {
@@ -644,10 +646,10 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	}
 
 	if r.guiDebug {
-		ebitenutil.DrawRect(screen, 0, 0, 96, 72, color.RGBA{96, 96, 96, 196})
+		ebitenutil.DrawRect(screen, 0, 0, 96, 56, color.RGBA{96, 96, 96, 196})
 
-		ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f\nCursor: (%d,%d)\nRound: %d",
-			ebiten.CurrentTPS(), ebiten.CurrentFPS(), r.c_row, r.c_column, r.round))
+		ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f\nCursor: (%d,%d)",
+			ebiten.CurrentTPS(), ebiten.CurrentFPS(), r.c_row, r.c_column))
 	}
 
 	r.drawStatusBar(screen)
