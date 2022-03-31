@@ -38,6 +38,7 @@ type asyncResult struct {
 type Engine struct {
 	phase                  Phases
 	schedulerType          Scheduler
+	schedulerEventDriven   bool
 	schedulerRes           []interface{}
 	grid                   [][]*Particle
 	edges                  map[int]map[int]bool
@@ -248,6 +249,7 @@ func (e *Engine) Scheduler(particles []interface{}, states []interface{}) ([]int
 
 	activeParticles := schdulerScriptCompiled.Get("active_particles")
 	schedulerType := schdulerScriptCompiled.Get("scheduler_type").String()
+	e.schedulerEventDriven = schdulerScriptCompiled.Get("scheduler_event_driven").Bool()
 
 	switch strings.ToLower(schedulerType) {
 	case "async":
@@ -708,12 +710,21 @@ func (e *Engine) syncUpdate() {
 func (e *Engine) asyncUpdate() {
 	particles := make([]interface{}, 0)
 	states := make([]interface{}, 0)
+	eventDrivenParticles := make([]interface{}, 0)
 
 	for row, columns := range e.grid {
 		for column, particle := range columns {
 			if particle.state != VOID && particle.state != OBSTACLE {
 				particles = append(particles, fmt.Sprintf("%d,%d", row, column))
 				states = append(states, particle.GetStateS(nil))
+				if e.schedulerEventDriven {
+					neighbors1, _ := particle.GetNeighborsString()
+					for _, neighbor := range neighbors1 {
+						if neighbor != "VOID" && neighbor != "OBSTACLE" {
+							eventDrivenParticles = append(eventDrivenParticles, fmt.Sprintf("%d,%d", row, column))
+						}
+					}
+				}
 			}
 		}
 	}
@@ -723,6 +734,9 @@ func (e *Engine) asyncUpdate() {
 	res, err := e.Scheduler(particles, states)
 	if err != nil {
 		panic(err)
+	}
+	if e.schedulerEventDriven {
+		res = append(res, eventDrivenParticles...)
 	}
 
 	fmt.Printf("Scheduler awakes: %s\n", res)
