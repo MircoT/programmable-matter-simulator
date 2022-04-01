@@ -727,6 +727,9 @@ func (e *Engine) asyncUpdate() {
 							break
 						}
 					}
+
+					// Update deg to calculate isolated particles
+					particle.deg = 0
 				} else {
 					if particle.state != VOID && particle.state != OBSTACLE {
 						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
