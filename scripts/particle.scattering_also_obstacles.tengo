@@ -82,7 +82,7 @@ transition := func(state, N1, N2, N1deg) {
     //     }
     // }
 
-    if numParticles == 0 {
+    if numParticles == 0 && numObstacles == 0 {
         return state
     }
 
@@ -112,7 +112,7 @@ transition := func(state, N1, N2, N1deg) {
         }
     }
     
-    fmt.println(state, " ", N1, " ", max_i, " ", start_pos)
+    fmt.println("SCRIPT --> ", state, " ", N1, " ", max_i, " ", start_pos)
 
     direction := -1
     next_start := -1
