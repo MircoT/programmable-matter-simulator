@@ -714,16 +714,27 @@ func (e *Engine) asyncUpdate() {
 
 	for row, columns := range e.grid {
 		for column, particle := range columns {
-			if particle.state != VOID && particle.state != OBSTACLE {
-				particles = append(particles, fmt.Sprintf("%d,%d", row, column))
-				states = append(states, particle.GetStateS(nil))
-				if e.schedulerEventDriven {
+			if e.schedulerEventDriven {
+				if particle.state == CONTRACTED {
 					neighbors1, _ := particle.GetNeighborsString()
+
 					for _, neighbor := range neighbors1 {
 						if neighbor != "VOID" && neighbor != "OBSTACLE" {
 							eventDrivenParticles = append(eventDrivenParticles, fmt.Sprintf("%d,%d", row, column))
+
+							break
 						}
 					}
+				} else {
+					if particle.state != VOID && particle.state != OBSTACLE {
+						particles = append(particles, fmt.Sprintf("%d,%d", row, column))
+						states = append(states, particle.GetStateS(nil))
+					}
+				}
+			} else {
+				if particle.state != VOID && particle.state != OBSTACLE {
+					particles = append(particles, fmt.Sprintf("%d,%d", row, column))
+					states = append(states, particle.GetStateS(nil))
 				}
 			}
 		}
@@ -735,6 +746,7 @@ func (e *Engine) asyncUpdate() {
 	if err != nil {
 		panic(err)
 	}
+
 	if e.schedulerEventDriven {
 		res = append(res, eventDrivenParticles...)
 	}
