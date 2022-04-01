@@ -716,10 +716,12 @@ func (e *Engine) asyncUpdate() {
 		for column, particle := range columns {
 			if e.schedulerEventDriven {
 				if particle.state == CONTRACTED {
-					neighbors1, _ := particle.GetNeighborsString()
+					neighbors1, _ := e.getNeighbors(row, column)
+
+					// fmt.Printf("particle (%d,%d): %#\n", row, column, neighbors1)
 
 					for _, neighbor := range neighbors1 {
-						if neighbor != "VOID" && neighbor != "OBSTACLE" {
+						if neighbor != VOID && neighbor != OBSTACLE {
 							eventDrivenParticles = append(eventDrivenParticles, fmt.Sprintf("%d,%d", row, column))
 
 							break
@@ -746,6 +748,8 @@ func (e *Engine) asyncUpdate() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Event driven %#\n", eventDrivenParticles)
 
 	if e.schedulerEventDriven {
 		res = append(res, eventDrivenParticles...)
