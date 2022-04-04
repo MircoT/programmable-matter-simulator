@@ -31,4 +31,4 @@ the environment pressing `R`.
 
 ## :warning: Known bugs :warning:
 
-- A particle that reach the border will crash the engine (not supported at the moment, maybe a toroidal map could help)
+Did you find something strange or not working? Write and [issue](https://github.com/MircoT/programmable-matter-simulator/issues/new/choose) and let's fix the bug together!
