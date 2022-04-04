@@ -3,6 +3,8 @@ rand := import("rand")
 
 scheduler_type := "ASYNC"
 scheduler_event_driven := true
+scheduler_event_driven_with_blocks := true
+
 scheduler := func(all_particles, all_states) {
     fmt.println(all_particles)
     to_awake := []

@@ -36,26 +36,27 @@ type asyncResult struct {
 }
 
 type Engine struct {
-	phase                  Phases
-	schedulerType          Scheduler
-	schedulerEventDriven   bool
-	schedulerRes           []interface{}
-	grid                   [][]*Particle
-	edges                  map[int]map[int]bool
-	initScript             *tengo.Compiled
-	schedulerScript        *tengo.Script
-	particleScript         []*tengo.Script
-	particleScriptNames    []string
-	particleScriptSelected int
-	running                bool
-	asyncLoopRunning       bool
-	asyncResults           chan asyncResult
-	asyncInitPhase         int
-	asyncLookPhase         int
-	asyncComputePhase      int
-	asyncMovePhase         int
-	asyncMu                sync.RWMutex
-	asyncGridAwoken        [][]bool
+	phase                          Phases
+	schedulerType                  Scheduler
+	schedulerEventDriven           bool
+	schedulerEventDrivenWithBlocks bool
+	schedulerRes                   []interface{}
+	grid                           [][]*Particle
+	edges                          map[int]map[int]bool
+	initScript                     *tengo.Compiled
+	schedulerScript                *tengo.Script
+	particleScript                 []*tengo.Script
+	particleScriptNames            []string
+	particleScriptSelected         int
+	running                        bool
+	asyncLoopRunning               bool
+	asyncResults                   chan asyncResult
+	asyncInitPhase                 int
+	asyncLookPhase                 int
+	asyncComputePhase              int
+	asyncMovePhase                 int
+	asyncMu                        sync.RWMutex
+	asyncGridAwoken                [][]bool
 }
 
 func (e *Engine) Init(numRows, numCols int) error {
@@ -250,6 +251,7 @@ func (e *Engine) Scheduler(particles []interface{}, states []interface{}) ([]int
 	activeParticles := schdulerScriptCompiled.Get("active_particles")
 	schedulerType := schdulerScriptCompiled.Get("scheduler_type").String()
 	e.schedulerEventDriven = schdulerScriptCompiled.Get("scheduler_event_driven").Bool()
+	e.schedulerEventDrivenWithBlocks = schdulerScriptCompiled.Get("scheduler_event_driven_with_blocks").Bool()
 
 	switch strings.ToLower(schedulerType) {
 	case "async":
@@ -721,7 +723,7 @@ func (e *Engine) asyncUpdate() {
 					// fmt.Printf("particle (%d,%d): %#\n", row, column, neighbors1)
 
 					for _, neighbor := range neighbors1 {
-						if neighbor != VOID && neighbor != OBSTACLE {
+						if (neighbor != VOID && neighbor != OBSTACLE) || (e.schedulerEventDrivenWithBlocks && neighbor != VOID) {
 							eventDrivenParticles = append(eventDrivenParticles, fmt.Sprintf("%d,%d", row, column))
 
 							break
