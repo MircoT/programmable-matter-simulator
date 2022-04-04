@@ -820,36 +820,44 @@ func (e *Engine) Update(eTick *chan int) {
 	}
 }
 
+func (e *Engine) getSafeN1Degs(row, col int) int {
+	if row < 1 || col < 1 || row > len(e.grid)-1 || col > len(e.grid[0])-1 {
+		return 6
+	}
+
+	return e.grid[row][col].GetDeg()
+}
+
 func (e *Engine) getN1Degs(row, column int) (neighbors1Deg []int) {
 	neighbors1Deg = make([]int, 0)
 	// L
 	curRow := row
 	curCol := column - 1
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	// R
 	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	// UL
 	curRow = row - 1
 	curCol = column
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	// UR
 	curRow = row - 1
 	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	// LL
 	curRow = row + 1
 	curCol = column
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	// LR
 	curRow = row + 1
 	curCol = column + 1
-	neighbors1Deg = append(neighbors1Deg, e.grid[curRow][curCol].GetDeg())
+	neighbors1Deg = append(neighbors1Deg, e.getSafeN1Degs(curRow, curCol))
 
 	return neighbors1Deg
 }
@@ -943,6 +951,14 @@ func (e *Engine) getRound() int {
 	return min
 }
 
+func (e *Engine) getSafeState(row, col int) State {
+	if row < 1 || col < 1 || row > len(e.grid)-1 || col > len(e.grid[0])-1 {
+		return OBSTACLE
+	}
+
+	return e.grid[row][col].state
+}
+
 func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 []State) {
 	e.asyncMu.RLock()
 	defer e.asyncMu.RUnlock()
@@ -953,11 +969,11 @@ func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 [
 	// L
 	curRow := row
 	curCol := column - 1
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// R
 	curCol = column + 1
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// UL
 	curRow = row - 1
@@ -965,7 +981,7 @@ func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 [
 	if curRow%2 == 0 {
 		curCol -= 1
 	}
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// UR
 	curRow = row - 1
@@ -973,7 +989,7 @@ func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 [
 	if curRow%2 != 0 {
 		curCol += 1
 	}
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// LL
 	curRow = row + 1
@@ -981,7 +997,7 @@ func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 [
 	if curRow%2 == 0 {
 		curCol -= 1
 	}
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// LR
 	curRow = row + 1
@@ -989,36 +1005,36 @@ func (e *Engine) getNeighbors(row, column int) (neighbors1 []State, neighbors2 [
 	if curRow%2 != 0 {
 		curCol += 1
 	}
-	neighbors1 = append(neighbors1, e.grid[curRow][curCol].state)
+	neighbors1 = append(neighbors1, e.getSafeState(curRow, curCol))
 
 	// 2L
 	curRow = row
 	curCol = column - 2
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	// 2R
 	curCol = column + 2
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	// U2L
 	curRow = row - 2
 	curCol = column - 1
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	// U2R
 	curRow = row - 2
 	curCol = column + 1
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	// L2L
 	curRow = row + 2
 	curCol = column - 1
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	// L2R
 	curRow = row + 2
 	curCol = column + 1
-	neighbors2 = append(neighbors2, e.grid[curRow][curCol].state)
+	neighbors2 = append(neighbors2, e.getSafeState(curRow, curCol))
 
 	return neighbors1, neighbors2
 }
